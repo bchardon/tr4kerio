@@ -1,6 +1,6 @@
 {
   "name": "tr4ker-stremio-addon",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "private": true,
   "description": "Addon Stremio Torznab pour TR4KER",
   "main": "server.js",

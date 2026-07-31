@@ -4,17 +4,18 @@ const {
   getPlaybackMetadata
 } = require("./torznab");
 
-const RESULTS_PER_QUALITY = Number(
-  process.env.RESULTS_PER_QUALITY || 2
+const RESULTS_PER_QUALITY = Math.max(
+  1,
+  Number(process.env.RESULTS_PER_QUALITY || 2)
 );
 
 const QUALITY_ORDER = ["4k", "1080p", "720p"];
 
 function detectQuality(title) {
-  const normalizedTitle = title.toLowerCase();
+  const normalizedTitle = String(title || "").toLowerCase();
 
   if (
-    /\b2160p?\b/i.test(normalizedTitle) ||
+    /\b2160[pi]?\b/i.test(normalizedTitle) ||
     /\b4k\b/i.test(normalizedTitle) ||
     /\buhd\b/i.test(normalizedTitle)
   ) {
@@ -33,12 +34,21 @@ function detectQuality(title) {
 }
 
 function parseRequestedQualities(value) {
-  const normalized = decodeURIComponent(
-    String(value || "1080p")
-  )
+  let normalized;
+
+  try {
+    normalized = decodeURIComponent(
+      String(value || "1080p")
+    );
+  } catch {
+    normalized = String(value || "1080p");
+  }
+
+  normalized = normalized
     .toLowerCase()
     .replace(/\+/g, ",")
-    .replace(/\|/g, ",");
+    .replace(/\|/g, ",")
+    .replace(/;/g, ",");
 
   if (normalized === "all") {
     return [...QUALITY_ORDER];
@@ -51,7 +61,8 @@ function parseRequestedQualities(value) {
       if (
         quality === "2160p" ||
         quality === "2160" ||
-        quality === "4k"
+        quality === "4k" ||
+        quality === "uhd"
       ) {
         return "4k";
       }
@@ -78,28 +89,28 @@ function parseRequestedQualities(value) {
 }
 
 function getSourceScore(title) {
-  const normalizedTitle = title.toLowerCase();
+  const normalizedTitle = String(title || "").toLowerCase();
 
   if (/\bremux\b/i.test(normalizedTitle)) {
     return 600;
   }
 
   if (
-    /\bblu[\s.-]?ray\b/i.test(normalizedTitle) ||
+    /\bblu[\s._-]?ray\b/i.test(normalizedTitle) ||
     /\bbluray\b/i.test(normalizedTitle)
   ) {
     return 500;
   }
 
   if (
-    /\bweb[\s.-]?dl\b/i.test(normalizedTitle) ||
+    /\bweb[\s._-]?dl\b/i.test(normalizedTitle) ||
     /\bwebdl\b/i.test(normalizedTitle)
   ) {
     return 400;
   }
 
   if (
-    /\bweb[\s.-]?rip\b/i.test(normalizedTitle) ||
+    /\bweb[\s._-]?rip\b/i.test(normalizedTitle) ||
     /\bwebrip\b/i.test(normalizedTitle)
   ) {
     return 300;
@@ -113,23 +124,34 @@ function getSourceScore(title) {
 }
 
 function detectSource(title) {
-  if (/\bremux\b/i.test(title)) {
+  const normalizedTitle = String(title || "");
+
+  if (/\bremux\b/i.test(normalizedTitle)) {
     return "REMUX";
   }
 
-  if (/\bblu[\s.-]?ray\b|\bbluray\b/i.test(title)) {
+  if (
+    /\bblu[\s._-]?ray\b/i.test(normalizedTitle) ||
+    /\bbluray\b/i.test(normalizedTitle)
+  ) {
     return "BluRay";
   }
 
-  if (/\bweb[\s.-]?dl\b|\bwebdl\b/i.test(title)) {
+  if (
+    /\bweb[\s._-]?dl\b/i.test(normalizedTitle) ||
+    /\bwebdl\b/i.test(normalizedTitle)
+  ) {
     return "WEB-DL";
   }
 
-  if (/\bweb[\s.-]?rip\b|\bwebrip\b/i.test(title)) {
+  if (
+    /\bweb[\s._-]?rip\b/i.test(normalizedTitle) ||
+    /\bwebrip\b/i.test(normalizedTitle)
+  ) {
     return "WEBRip";
   }
 
-  if (/\bhdtv\b/i.test(title)) {
+  if (/\bhdtv\b/i.test(normalizedTitle)) {
     return "HDTV";
   }
 
@@ -137,15 +159,21 @@ function detectSource(title) {
 }
 
 function detectCodec(title) {
-  if (/\bav1\b/i.test(title)) {
+  const normalizedTitle = String(title || "");
+
+  if (/\bav1\b/i.test(normalizedTitle)) {
     return "AV1";
   }
 
-  if (/\b(x265|h\.?265|hevc)\b/i.test(title)) {
+  if (
+    /\b(x265|h\.?265|hevc)\b/i.test(normalizedTitle)
+  ) {
     return "HEVC";
   }
 
-  if (/\b(x264|h\.?264|avc)\b/i.test(title)) {
+  if (
+    /\b(x264|h\.?264|avc)\b/i.test(normalizedTitle)
+  ) {
     return "H.264";
   }
 
@@ -153,13 +181,20 @@ function detectCodec(title) {
 }
 
 function detectHdr(title) {
+  const normalizedTitle = String(title || "");
   const formats = [];
 
-  if (/\b(dv|dolby[ ._-]?vision)\b/i.test(title)) {
+  if (
+    /\b(dv|dolby[ ._-]?vision)\b/i.test(
+      normalizedTitle
+    )
+  ) {
     formats.push("Dolby Vision");
   }
 
-  if (/\bhdr10\+?\b|\bhdr\b/i.test(title)) {
+  if (
+    /\bhdr10\+?\b|\bhdr\b/i.test(normalizedTitle)
+  ) {
     formats.push("HDR");
   }
 
@@ -167,19 +202,28 @@ function detectHdr(title) {
 }
 
 function detectAudio(title) {
+  const normalizedTitle = String(title || "");
   const formats = [];
 
-  if (/\batmos\b/i.test(title)) {
+  if (/\batmos\b/i.test(normalizedTitle)) {
     formats.push("Atmos");
   }
 
-  if (/\btruehd\b/i.test(title)) {
+  if (/\btruehd\b/i.test(normalizedTitle)) {
     formats.push("TrueHD");
-  } else if (/\bdts(?:-hd)?\b/i.test(title)) {
+  } else if (
+    /\bdts(?:[ ._-]?hd)?\b/i.test(normalizedTitle)
+  ) {
     formats.push("DTS");
-  } else if (/\b(ddp|dd\+|eac3)\b/i.test(title)) {
+  } else if (
+    /\b(ddp|dd\+|eac3|e-ac-3)\b/i.test(
+      normalizedTitle
+    )
+  ) {
     formats.push("DD+");
-  } else if (/\baac\b/i.test(title)) {
+  } else if (/\bac-?3\b/i.test(normalizedTitle)) {
+    formats.push("AC3");
+  } else if (/\baac\b/i.test(normalizedTitle)) {
     formats.push("AAC");
   }
 
@@ -187,25 +231,33 @@ function detectAudio(title) {
 }
 
 function detectLanguages(title) {
+  const normalizedTitle = String(title || "");
   const languages = [];
 
-  if (/\bmulti\b/i.test(title)) {
+  if (/\bmulti\b/i.test(normalizedTitle)) {
     languages.push("MULTi");
   }
 
-  if (/\bvfi\b/i.test(title)) {
+  if (/\bvfi\b/i.test(normalizedTitle)) {
     languages.push("VFI");
   }
 
-  if (/\bvff\b/i.test(title)) {
+  if (/\bvff\b/i.test(normalizedTitle)) {
     languages.push("VFF");
   }
 
-  if (/\bvfq\b/i.test(title)) {
+  if (/\bvfq\b/i.test(normalizedTitle)) {
     languages.push("VFQ");
   }
 
-  if (/\bfr(?:ench)?\b/i.test(title)) {
+  if (/\bvostfr\b/i.test(normalizedTitle)) {
+    languages.push("VOSTFR");
+  }
+
+  if (
+    /\bfrench\b/i.test(normalizedTitle) ||
+    /\btruefrench\b/i.test(normalizedTitle)
+  ) {
     languages.push("FR");
   }
 
@@ -235,10 +287,18 @@ function qualityLabel(quality) {
     return "4K";
   }
 
-  return quality;
+  if (quality === "1080p") {
+    return "1080p";
+  }
+
+  if (quality === "720p") {
+    return "720p";
+  }
+
+  return String(quality || "");
 }
 
-function createDescription(torrent, quality) {
+function createDescription(torrent) {
   const source = detectSource(torrent.title);
   const codec = detectCodec(torrent.title);
   const hdr = detectHdr(torrent.title);
@@ -270,6 +330,7 @@ function selectTorrentsByQuality(
   requestedQualities
 ) {
   const selected = [];
+  const usedInfoHashes = new Set();
 
   for (const quality of requestedQualities) {
     const qualityResults = torrents
@@ -277,7 +338,11 @@ function selectTorrentsByQuality(
         (torrent) =>
           detectQuality(torrent.title) === quality
       )
-      .filter((torrent) => torrent.seeders > 0)
+      .filter(
+        (torrent) =>
+          torrent.infoHash &&
+          Number(torrent.seeders || 0) > 0
+      )
       .sort((first, second) => {
         const sourceDifference =
           getSourceScore(second.title) -
@@ -288,28 +353,52 @@ function selectTorrentsByQuality(
         }
 
         const seedDifference =
-          second.seeders - first.seeders;
+          Number(second.seeders || 0) -
+          Number(first.seeders || 0);
 
         if (seedDifference !== 0) {
           return seedDifference;
         }
 
-        return first.size - second.size;
-      })
-      .slice(0, RESULTS_PER_QUALITY)
-      .map((torrent) => ({
-        ...torrent,
-        detectedQuality: quality
-      }));
+        return (
+          Number(first.size || 0) -
+          Number(second.size || 0)
+        );
+      });
 
-    selected.push(...qualityResults);
+    let addedForQuality = 0;
+
+    for (const torrent of qualityResults) {
+      const infoHash = String(
+        torrent.infoHash || ""
+      ).toLowerCase();
+
+      if (!infoHash || usedInfoHashes.has(infoHash)) {
+        continue;
+      }
+
+      selected.push({
+        ...torrent,
+        infoHash,
+        detectedQuality: quality
+      });
+
+      usedInfoHashes.add(infoHash);
+      addedForQuality += 1;
+
+      if (
+        addedForQuality >= RESULTS_PER_QUALITY
+      ) {
+        break;
+      }
+    }
   }
 
   return selected;
 }
 
 function parseSeriesId(id) {
-  const parts = String(id).split(":");
+  const parts = String(id || "").split(":");
 
   return {
     imdbId: parts[0],
@@ -328,13 +417,18 @@ async function loadTorrents({
   }
 
   if (type === "series") {
-    const { imdbId, season, episode } =
-      parseSeriesId(id);
+    const {
+      imdbId,
+      season,
+      episode
+    } = parseSeriesId(id);
 
     if (
       !imdbId ||
       !Number.isInteger(season) ||
-      !Number.isInteger(episode)
+      !Number.isInteger(episode) ||
+      season < 0 ||
+      episode < 0
     ) {
       return [];
     }
@@ -350,41 +444,35 @@ async function loadTorrents({
   return [];
 }
 
+/*
+ * Cette fonction est volontairement synchrone.
+ * Elle renvoie directement un objet stream Stremio,
+ * et non une Promise.
+ */
 async function createStream(torrent) {
   try {
-    const playback = await getPlaybackMetadata(torrent);
+    const playback =
+      await getPlaybackMetadata(torrent);
+
+    const description = createDescription(torrent);
 
     const stream = {
       name: `TR4KER\n${qualityLabel(
         torrent.detectedQuality
       )}`,
 
-      title: createDescription(
-        torrent,
-        torrent.detectedQuality
-      ),
-
-      description: createDescription(
-        torrent,
-        torrent.detectedQuality
-      ),
+      title: description,
+      description,
 
       infoHash: playback.infoHash,
 
       behaviorHints: {
         bingeGroup: `tr4ker-${torrent.detectedQuality}`,
-        videoSize: torrent.size
+        videoSize: Number(torrent.size) || 0
       }
     };
 
-    /*
-     * Ne fournir sources que lorsqu'il existe
-     * réellement des trackers valides.
-     */
-    if (
-      Array.isArray(playback.sources) &&
-      playback.sources.length > 0
-    ) {
+    if (playback.sources.length > 0) {
       stream.sources = playback.sources;
     }
 
@@ -403,9 +491,17 @@ async function createStream(torrent) {
 }
 
 async function getStreams(params) {
-  const apiKey = String(params.apikey || "").trim();
-  const type = String(params.type || "").trim();
-  const id = String(params.id || "").trim();
+  const apiKey = String(
+    params.apikey || ""
+  ).trim();
+
+  const type = String(
+    params.type || ""
+  ).trim();
+
+  const id = String(
+    params.id || ""
+  ).trim();
 
   if (!apiKey || !type || !id) {
     return { streams: [] };
@@ -418,25 +514,39 @@ async function getStreams(params) {
     return { streams: [] };
   }
 
-  const torrents = await loadTorrents({
-    apiKey,
-    type,
-    id
-  });
+  try {
+    const torrents = await loadTorrents({
+      apiKey,
+      type,
+      id
+    });
 
-  const selectedTorrents =
-    selectTorrentsByQuality(
-      torrents,
-      requestedQualities
+    const selectedTorrents =
+      selectTorrentsByQuality(
+        Array.isArray(torrents) ? torrents : [],
+        requestedQualities
+      );
+
+    const streams = (
+      await Promise.all(
+        selectedTorrents.map(createStream)
+      )
+    ).filter(Boolean);
+
+    console.log(
+      `[stream] ${type}/${id} | qualités=${requestedQualities.join(
+        ","
+      )} | torrents=${torrents.length} | streams=${streams.length}`
     );
 
-  const streams = (
-    await Promise.all(
-      selectedTorrents.map(createStream)
-    )
-  ).filter(Boolean);
+    return { streams };
+  } catch (error) {
+    console.error(
+      `[stream] Erreur pour ${type}/${id}: ${error.message}`
+    );
 
-  return { streams };
+    return { streams: [] };
+  }
 }
 
 module.exports = {
