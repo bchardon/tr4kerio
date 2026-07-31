@@ -1,7 +1,7 @@
 function getManifest(configured = false) {
   return {
     id: "community.tr4ker.torznab",
-    version: "1.0.4",
+    version: "1.0.5",
     name: "TR4KER",
     description: "Résultats TR4KER via Torznab",
     logo: "https://tr4ker.net/favicon.ico",

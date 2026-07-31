@@ -218,20 +218,30 @@ async function getPlaybackMetadata(torrent) {
     );
   }
 
-  if (trackers.length === 0) {
-    throw new Error(
-      `Aucun tracker trouvé dans ${torrent.title}`
-    );
-  }
+  console.log(
+    `[torrent] ${torrent.title} | ` +
+    `infoHash=${infoHash} | ` +
+    `trackers=${trackers.length} | ` +
+    `private=${Boolean(parsedTorrent.private)} | ` +
+    `files=${parsedTorrent.files?.length || 0}`
+  );
 
   return {
     infoHash,
+
+    /*
+     * Certains torrents TR4KER ne contiennent aucun champ
+     * announce. Stremio peut néanmoins les charger via DHT
+     * à partir de l'infoHash.
+     */
     sources: trackers.map(
       (tracker) => `tracker:${tracker}`
     ),
+
     fileIdx: findLargestVideoFileIndex(
       parsedTorrent.files
     ),
+
     private: Boolean(parsedTorrent.private)
   };
 }

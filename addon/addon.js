@@ -352,28 +352,41 @@ async function loadTorrents({
 
 async function createStream(torrent) {
   try {
-    const playback =
-      await getPlaybackMetadata(torrent);
+    const playback = await getPlaybackMetadata(torrent);
 
     const stream = {
       name: `TR4KER\n${qualityLabel(
         torrent.detectedQuality
       )}`,
+
       title: createDescription(
         torrent,
         torrent.detectedQuality
       ),
+
       description: createDescription(
         torrent,
         torrent.detectedQuality
       ),
+
       infoHash: playback.infoHash,
-      sources: playback.sources,
+
       behaviorHints: {
         bingeGroup: `tr4ker-${torrent.detectedQuality}`,
         videoSize: torrent.size
       }
     };
+
+    /*
+     * Ne fournir sources que lorsqu'il existe
+     * réellement des trackers valides.
+     */
+    if (
+      Array.isArray(playback.sources) &&
+      playback.sources.length > 0
+    ) {
+      stream.sources = playback.sources;
+    }
 
     if (Number.isInteger(playback.fileIdx)) {
       stream.fileIdx = playback.fileIdx;
