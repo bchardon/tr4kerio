@@ -9,6 +9,7 @@ services:
       PUBLIC_URL: https://tr4ker.lyno.top
       REQUEST_TIMEOUT_MS: 15000
       MAX_RESULTS: 50
+      RESULTS_PER_QUALITY: 2
 
     expose:
       - "7000"
