@@ -1,7 +1,6 @@
 const {
   searchMovie,
-  searchSeries,
-  getPlaybackMetadata
+  searchSeries
 } = require("./torznab");
 
 const RESULTS_PER_QUALITY = Math.max(
@@ -449,63 +448,24 @@ async function loadTorrents({
  * Elle renvoie directement un objet stream Stremio,
  * et non une Promise.
  */
-async function createStream(torrent) {
-  try {
-    const playback = await getPlaybackMetadata(torrent);
-    const description = createDescription(torrent);
+function createStream(torrent) {
+  const infoHash = String(torrent.infoHash || "")
+    .trim()
+    .toLowerCase();
 
-    const stream = {
-      name: `TR4KER\n${qualityLabel(
-        torrent.detectedQuality
-      )}`,
-
-      title: description,
-      description,
-
-      infoHash: playback.infoHash,
-
-      behaviorHints: {
-        bingeGroup: `tr4ker-${torrent.detectedQuality}`,
-        videoSize: Number(torrent.size) || 0
-      }
-    };
-
-    /*
-     * Stremio documente uniquement les trackers HTTP et UDP
-     * dans le champ sources. On élimine donc les trackers HTTPS,
-     * qui peuvent faire rejeter entièrement le stream.
-     */
-    const compatibleSources = Array.isArray(playback.sources)
-      ? playback.sources.filter(
-        (source) =>
-          source.startsWith("tracker:http://") ||
-          source.startsWith("tracker:udp://")
-      )
-      : [];
-
-    if (compatibleSources.length > 0) {
-      stream.sources = compatibleSources;
-    }
-
-    if (Number.isInteger(playback.fileIdx)) {
-      stream.fileIdx = playback.fileIdx;
-    }
-
-    console.log(
-      `[stream préparé] ${torrent.title} | ` +
-      `sources=${compatibleSources.length} | ` +
-      `fileIdx=${stream.fileIdx ?? "absent"} | ` +
-      `infoHash=${stream.infoHash}`
-    );
-
-    return stream;
-  } catch (error) {
+  if (!/^[a-f0-9]{40}$/.test(infoHash)) {
     console.error(
-      `[torrent] Impossible de préparer "${torrent.title}": ${error.message}`
+      `[stream] InfoHash invalide pour "${torrent.title}": ${infoHash}`
     );
 
     return null;
   }
+
+  return {
+    name: `TR4KER ${qualityLabel(torrent.detectedQuality)}`,
+    title: createDescription(torrent),
+    infoHash
+  };
 }
 
 async function getStreams(params) {
@@ -545,11 +505,9 @@ async function getStreams(params) {
         requestedQualities
       );
 
-    const streams = (
-      await Promise.all(
-        selectedTorrents.map(createStream)
-      )
-    ).filter(Boolean);
+    const streams = selectedTorrents
+      .map(createStream)
+      .filter(Boolean);
 
     console.log(
       `[stream] ${type}/${id} | qualités=${requestedQualities.join(
