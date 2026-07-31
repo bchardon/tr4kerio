@@ -19,8 +19,15 @@ app.use((req, res, next) => {
 });
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
-app.get("/manifest.json", (_req, res) => res.json(getManifest()));
-app.get("/:apikey/:quality/manifest.json", (_req, res) => res.json(getManifest()));
+app.get("/manifest.json", (_req, res) => {
+  res.json(getManifest(false));
+});
+
+app.get("/:apikey/:quality/manifest.json", (_req, res) => {
+  res.json(getManifest(true));
+});
+
+
 
 app.get("/:apikey/:quality/stream/:type/:id.json", async (req, res) => {
   try {
@@ -30,6 +37,17 @@ app.get("/:apikey/:quality/stream/:type/:id.json", async (req, res) => {
     console.error(`[stream] ${error.message}`);
     res.status(200).json({ streams: [] });
   }
+});
+
+app.get("/configure", (_req, res) => {
+  res.redirect("/");
+});
+
+app.get("/:apikey/:quality/configure", (req, res) => {
+  const apikey = encodeURIComponent(req.params.apikey);
+  const quality = encodeURIComponent(req.params.quality);
+
+  res.redirect(`/?apikey=${apikey}&quality=${quality}`);
 });
 
 app.use((_req, res) => res.status(404).json({ error: "Route introuvable" }));

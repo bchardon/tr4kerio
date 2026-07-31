@@ -4,6 +4,24 @@ const manifestInput = document.querySelector("#manifest-url");
 const installLink = document.querySelector("#install-link");
 const copyButton = document.querySelector("#copy");
 
+if (configuredApiKey) {
+  const apiKeyInput = form.querySelector('[name="apikey"]');
+
+  if (apiKeyInput) {
+    apiKeyInput.value = configuredApiKey;
+  }
+}
+
+if (configuredQuality) {
+  const qualityInput = form.querySelector(
+    `[name="quality"][value="${CSS.escape(configuredQuality)}"]`
+  );
+
+  if (qualityInput) {
+    qualityInput.checked = true;
+  }
+}
+
 function buildManifestUrl(apikey, quality) {
   const base = window.location.origin.replace(/\/$/, "");
   return `${base}/${encodeURIComponent(apikey.trim())}/${encodeURIComponent(quality)}/manifest.json`;
