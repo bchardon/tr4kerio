@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>TR4KER pour Stremio</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main class="card">
+    <div class="brand">TR4KER</div>
+    <h1>Addon Stremio</h1>
+    <p class="intro">Configure ta clé API et la qualité des résultats à afficher dans Stremio.</p>
+
+    <form id="config-form">
+      <label for="apikey">Clé API TR4KER</label>
+      <input id="apikey" name="apikey" type="password" required autocomplete="off" placeholder="tr4k_…">
+
+      <label for="quality">Qualité</label>
+      <select id="quality" name="quality">
+        <option value="4k">4K / 2160p</option>
+        <option value="1080p" selected>1080p</option>
+        <option value="720p">720p</option>
+        <option value="all">Toutes les qualités</option>
+      </select>
+
+      <button type="submit">Installer dans Stremio</button>
+    </form>
+
+    <section id="result" hidden>
+      <label for="manifest-url">URL du manifest</label>
+      <div class="copy-row">
+        <input id="manifest-url" readonly>
+        <button id="copy" type="button" class="secondary">Copier</button>
+      </div>
+      <a id="install-link" class="install-link">Ouvrir Stremio</a>
+    </section>
+
+    <p class="notice">La clé API est incluse dans l’URL de configuration. Ne partage pas cette URL.</p>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

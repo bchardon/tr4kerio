@@ -1,0 +1,18 @@
+:root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; background: radial-gradient(circle at top, #312e81, #111827 55%); color: #f9fafb; }
+.card { width: min(100%, 560px); padding: 32px; border: 1px solid #374151; border-radius: 20px; background: rgba(17,24,39,.94); box-shadow: 0 24px 70px rgba(0,0,0,.4); }
+.brand { display: inline-block; padding: 7px 11px; border-radius: 9px; background: #7c3aed; font-weight: 800; letter-spacing: .08em; }
+h1 { margin: 18px 0 8px; font-size: 2rem; }
+.intro, .notice { color: #cbd5e1; line-height: 1.55; }
+form { display: grid; gap: 12px; margin-top: 26px; }
+label { font-weight: 650; margin-top: 6px; }
+input, select, button, .install-link { width: 100%; min-height: 48px; border-radius: 10px; border: 1px solid #4b5563; font: inherit; }
+input, select { padding: 0 14px; background: #111827; color: #fff; }
+button, .install-link { display: grid; place-items: center; padding: 0 18px; border: 0; background: #7c3aed; color: #fff; font-weight: 750; cursor: pointer; text-decoration: none; }
+button:hover, .install-link:hover { filter: brightness(1.12); }
+#result { margin-top: 26px; padding-top: 22px; border-top: 1px solid #374151; }
+.copy-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; margin: 8px 0 12px; }
+.copy-row .secondary { width: auto; background: #374151; }
+.notice { margin: 22px 0 0; font-size: .9rem; }
+@media (max-width: 520px) { .card { padding: 22px; } .copy-row { grid-template-columns: 1fr; } .copy-row .secondary { width: 100%; } }
