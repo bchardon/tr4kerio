@@ -9,7 +9,6 @@ const PORT = Number(process.env.PORT || 7000);
 app.disable("x-powered-by");
 app.set("trust proxy", true);
 app.use(express.json({ limit: "16kb" }));
-app.use(express.static(path.join(__dirname, "public"), { extensions: ["html"] }));
 
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -17,6 +16,10 @@ app.use((req, res, next) => {
   res.setHeader("Cache-Control", "no-store");
   next();
 });
+
+app.use(express.static(path.join(__dirname, "public"), { extensions: ["html"] }));
+
+
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 app.get("/manifest.json", (_req, res) => {
