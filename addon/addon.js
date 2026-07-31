@@ -493,7 +493,7 @@ async function createStream(torrent) {
       `sources=${playback.sources?.length || 0} | ` +
       `fileIdx=${stream.fileIdx ?? "absent"}`
     );
-
+    console.log(JSON.stringify(stream, null, 2));
     return stream;
   } catch (error) {
     console.error(
