@@ -1,6 +1,7 @@
 const {
   searchMovie,
-  searchSeries
+  searchSeries,
+  getPlaybackMetadata
 } = require("./torznab");
 
 const RESULTS_PER_QUALITY = Math.max(
@@ -448,24 +449,59 @@ async function loadTorrents({
  * Elle renvoie directement un objet stream Stremio,
  * et non une Promise.
  */
-function createStream(torrent) {
-  const infoHash = String(torrent.infoHash || "")
-    .trim()
-    .toLowerCase();
+async function createStream(torrent) {
+  try {
+    const playback = await getPlaybackMetadata(torrent);
+    const description = createDescription(torrent);
 
-  if (!/^[a-f0-9]{40}$/.test(infoHash)) {
+    const stream = {
+      name: `TR4KER ${qualityLabel(
+        torrent.detectedQuality
+      )}`,
+
+      title: description,
+      description,
+
+      infoHash: playback.infoHash,
+
+      behaviorHints: {
+        bingeGroup: `tr4ker-${torrent.detectedQuality}`,
+        videoSize: Number(torrent.size) || 0
+      }
+    };
+
+    /*
+     * Transmet le tracker extrait du fichier .torrent,
+     * y compris lorsqu'il utilise HTTPS.
+     */
+    if (
+      Array.isArray(playback.sources) &&
+      playback.sources.length > 0
+    ) {
+      stream.sources = playback.sources;
+    }
+
+    /*
+     * Indique à Stremio quel fichier vidéo lire.
+     */
+    if (Number.isInteger(playback.fileIdx)) {
+      stream.fileIdx = playback.fileIdx;
+    }
+
+    console.log(
+      `[stream préparé] ${torrent.title} | ` +
+      `sources=${playback.sources?.length || 0} | ` +
+      `fileIdx=${stream.fileIdx ?? "absent"}`
+    );
+
+    return stream;
+  } catch (error) {
     console.error(
-      `[stream] InfoHash invalide pour "${torrent.title}": ${infoHash}`
+      `[torrent] Impossible de préparer "${torrent.title}": ${error.message}`
     );
 
     return null;
   }
-
-  return {
-    name: `TR4KER ${qualityLabel(torrent.detectedQuality)}`,
-    title: createDescription(torrent),
-    infoHash
-  };
 }
 
 async function getStreams(params) {
@@ -505,9 +541,11 @@ async function getStreams(params) {
         requestedQualities
       );
 
-    const streams = selectedTorrents
-      .map(createStream)
-      .filter(Boolean);
+    const streams = (
+      await Promise.all(
+        selectedTorrents.map(createStream)
+      )
+    ).filter(Boolean);
 
     console.log(
       `[stream] ${type}/${id} | qualités=${requestedQualities.join(
