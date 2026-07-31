@@ -33,27 +33,32 @@
       <input id="apikey" name="apikey" type="text" required autocomplete="off" autocapitalize="none" spellcheck="false"
         data-1p-ignore data-bwignore data-lpignore="true" placeholder="tr4k_xxxxxxxxxxxxxxxxxxxxx">
 
-      <label for="quality">
-        Qualité
-      </label>
+      <label for="quality">Qualités proposées</label>
 
       <select id="quality" name="quality">
-        <option value="4k">
-          4K / 2160p
+        <option value="720p,1080p" selected>
+          720p + 1080p
         </option>
 
-        <option value="1080p" selected>
-          1080p
+        <option value="1080p,4k">
+          1080p + 4K
+        </option>
+
+        <option value="720p,1080p,4k">
+          720p + 1080p + 4K
         </option>
 
         <option value="720p">
-          720p
+          720p uniquement
         </option>
 
-        <option value="all">
-          Toutes les qualités
+        <option value="1080p">
+          1080p uniquement
         </option>
 
+        <option value="4k">
+          4K uniquement
+        </option>
       </select>
 
       <button id="submit-button" type="submit">
