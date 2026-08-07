@@ -29,7 +29,7 @@ Ouvrir `http://localhost:7000`.
 ## Docker
 
 Vérifier les variables d’environnement dans `docker-compose.yml`, notamment
-`TORZNAB_URL`, puis lancer :
+`TORZNAB_URL` et `TRACKER_PROXY_URL`, puis lancer :
 
 ```bash
 docker compose up -d --build --remove-orphans
@@ -53,6 +53,12 @@ server {
 ```
 
 Gérer le certificat TLS avec Certbot ou le proxy déjà présent sur le VPS.
+
+`TRACKER_PROXY_URL` est facultative. Lorsqu’elle est définie, l’addon remplace
+uniquement l’origine `https://tk.tr4ker.net` des annonceurs par cette URL, tout
+en conservant leur chemin et leurs paramètres. Par exemple, avec
+`https://tr4ker.monsite.com/tracker`, le reverse proxy doit retirer le préfixe
+`/tracker` et transmettre la requête à `https://tk.tr4ker.net`.
 
 ## Installation Nuvio
 

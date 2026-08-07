@@ -9,6 +9,10 @@ const CINEMETA_URL =
   process.env.CINEMETA_URL ||
   "https://v3-cinemeta.strem.io";
 
+const TRACKER_PROXY_URL = String(
+  process.env.TRACKER_PROXY_URL || ""
+).replace(/\/+$/, "");
+
 const REQUEST_TIMEOUT_MS = Math.max(
   1000,
   Number(process.env.REQUEST_TIMEOUT_MS || 15000)
@@ -89,6 +93,29 @@ function normalizeInfoHash(value) {
   return /^[a-f0-9]{40}$/i.test(normalized)
     ? normalized
     : "";
+}
+
+/**
+ * Fait passer uniquement le tracker privé TR4KER par le relais HTTPS configuré.
+ * Le chemin contenant le passkey et les paramètres d'annonce restent inchangés.
+ */
+function getPlaybackTrackerUrl(tracker) {
+  if (!TRACKER_PROXY_URL) return tracker;
+
+  try {
+    const trackerUrl = new URL(tracker);
+
+    if (trackerUrl.hostname.toLowerCase() !== "tk.tr4ker.net") {
+      return tracker;
+    }
+
+    return (
+      `${TRACKER_PROXY_URL}${trackerUrl.pathname}` +
+      trackerUrl.search
+    );
+  } catch {
+    return tracker;
+  }
 }
 
 /**
@@ -415,7 +442,8 @@ async function getPlaybackMetadata(torrent) {
     fileName,
     fileSize: videoFile?.size || 0,
     sources: trackers.map(
-      (tracker) => `tracker:${tracker}`
+      (tracker) =>
+        `tracker:${getPlaybackTrackerUrl(tracker)}`
     )
   };
 }
