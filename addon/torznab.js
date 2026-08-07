@@ -175,6 +175,77 @@ async function getSeriesTitle(imdbid) {
   return seriesTitleCache.get(imdbid);
 }
 
+function getEpisodePattern(season, episode) {
+  return new RegExp(
+    `\\b(?:` +
+      `s0*${season}[ ._-]*e0*${episode}|` +
+      `0*${season}x0*${episode}|` +
+      `season[ ./_-]*0*${season}[ ./_-]+` +
+        `(?:episode|ep)[ ._-]*0*${episode}` +
+    `)\\b`,
+    "i"
+  );
+}
+
+function getSeasonPattern(season) {
+  return new RegExp(
+    `\\b(?:s(?:eason)?[ ._-]*0*${season})\\b`,
+    "i"
+  );
+}
+
+const ANY_EPISODE_PATTERN =
+  /\b(?:s0*\d+[ ._-]*e0*\d+|0*\d+x0*\d+|season[ ./_-]*\d+[ ./_-]+(?:episode|ep)[ ._-]*\d+)\b/i;
+
+function getSeriesReleaseType(title, season, episode) {
+  if (getEpisodePattern(season, episode).test(title)) {
+    return "episode";
+  }
+
+  if (ANY_EPISODE_PATTERN.test(title)) {
+    return null;
+  }
+
+  return getSeasonPattern(season).test(title)
+    ? "season"
+    : null;
+}
+
+function getVideoFileIndex(files, torrent) {
+  const videoExtensions =
+    /\.(mkv|mp4|avi|mov|m4v|ts|m2ts|webm)$/i;
+  const videoFiles = files
+    .map((file, index) => ({
+      index,
+      path: String(file.path || file.name || ""),
+      size: Number(file.length) || 0
+    }))
+    .filter((file) => videoExtensions.test(file.path));
+
+  const episodeFiles =
+    Number.isInteger(torrent.requestedSeason) &&
+    Number.isInteger(torrent.requestedEpisode)
+      ? videoFiles.filter((file) =>
+          getEpisodePattern(
+            torrent.requestedSeason,
+            torrent.requestedEpisode
+          ).test(file.path)
+        )
+      : [];
+
+  if (torrent.seasonPack && episodeFiles.length === 0) {
+    throw new Error(
+      `Épisode S${torrent.requestedSeason}E${torrent.requestedEpisode} ` +
+      `introuvable dans ${torrent.title}`
+    );
+  }
+
+  return (episodeFiles.length > 0
+    ? episodeFiles
+    : videoFiles
+  ).sort((first, second) => second.size - first.size)[0]?.index;
+}
+
 async function searchMovie(apiKey, identifiers) {
   const normalizedApiKey = String(apiKey || "").trim();
   const normalizedIdentifiers = normalizeIdentifiers(identifiers);
@@ -217,13 +288,29 @@ async function searchSeries(
     normalizedIdentifiers.imdbid
   );
 
-  return requestTorznab({
+  const torrents = await requestTorznab({
     t: "tvsearch",
     apikey: normalizedApiKey,
     ...(title ? { q: title } : normalizedIdentifiers),
     season: normalizedSeason,
-    ep: normalizedEpisode,
     limit: 100
+  });
+
+  return torrents.flatMap((torrent) => {
+    const releaseType = getSeriesReleaseType(
+      torrent.title,
+      normalizedSeason,
+      normalizedEpisode
+    );
+
+    return releaseType
+      ? [{
+          ...torrent,
+          requestedSeason: normalizedSeason,
+          requestedEpisode: normalizedEpisode,
+          seasonPack: releaseType === "season"
+        }]
+      : [];
   });
 }
 
@@ -273,31 +360,7 @@ async function getPlaybackMetadata(torrent) {
   }
 
   const files = asArray(parsedTorrent.files);
-
-  let fileIdx;
-
-  if (files.length > 0) {
-    const videoExtensions =
-      /\.(mkv|mp4|avi|mov|m4v|ts|m2ts|webm)$/i;
-
-    let largestSize = -1;
-
-    files.forEach((file, index) => {
-      const filePath = String(
-        file.path || file.name || ""
-      );
-
-      const fileSize = Number(file.length) || 0;
-
-      if (
-        videoExtensions.test(filePath) &&
-        fileSize > largestSize
-      ) {
-        largestSize = fileSize;
-        fileIdx = index;
-      }
-    });
-  }
+  const fileIdx = getVideoFileIndex(files, torrent);
 
   return {
     infoHash,
