@@ -1,10 +1,18 @@
 const express = require("express");
 const path = require("path");
+const { createHash } = require("crypto");
 const { getManifest } = require("./addon/manifest");
 const { getStreams } = require("./addon/addon");
 
 const app = express();
 const PORT = Number(process.env.PORT || 7000);
+
+function getConfigurationId({ apikey, quality }) {
+  return createHash("sha256")
+    .update(`${apikey}\0${quality}`)
+    .digest("hex")
+    .slice(0, 12);
+}
 
 app.disable("x-powered-by");
 
@@ -24,8 +32,8 @@ app.use(
 app.get("/health", (_req, res) => res.json({ ok: true }));
 app.get("/manifest.json", (_req, res) => res.json(getManifest()));
 
-app.get("/:apikey/:quality/manifest.json", (_req, res) =>
-  res.json(getManifest(true))
+app.get("/:apikey/:quality/manifest.json", (req, res) =>
+  res.json(getManifest(getConfigurationId(req.params)))
 );
 
 app.get("/:apikey/:quality/stream/:type/:id.json", async (req, res) => {

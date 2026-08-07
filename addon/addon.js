@@ -113,6 +113,7 @@ const LANGUAGE_RULES = [
   { label: "VFI", pattern: /\bvfi\b/i },
   { label: "VFF", pattern: /\bvff\b/i },
   { label: "VFQ", pattern: /\bvfq\b/i },
+  { label: "VF2", pattern: /\bvf2\b/i },
   { label: "VOSTFR", pattern: /\bvostfr\b/i },
   {
     label: "FR",
@@ -245,9 +246,9 @@ function selectTorrentsByQuality(
       sourceScore: detectSource(torrent.title).score
     }))
     .sort((first, second) =>
-      second.sourceScore - first.sourceScore ||
       Number(second.torrent.seeders) -
         Number(first.torrent.seeders) ||
+      second.sourceScore - first.sourceScore ||
       Number(first.torrent.size) -
         Number(second.torrent.size)
     );
@@ -287,11 +288,38 @@ function selectTorrentsByQuality(
   return selected;
 }
 
+function parseMediaId(id) {
+  const parts = id.split(":");
+
+  if (/^tt\d+$/i.test(parts[0])) {
+    return {
+      identifiers: { imdbid: parts[0] },
+      suffix: parts.slice(1)
+    };
+  }
+
+  if (
+    parts[0].toLowerCase() === "tmdb" &&
+    /^\d+$/.test(parts[1])
+  ) {
+    return {
+      identifiers: { tmdbid: parts[1] },
+      suffix: parts.slice(2)
+    };
+  }
+
+  return null;
+}
+
 function parseSeriesId(id) {
-  const [imdbId, season, episode] = id.split(":");
+  const media = parseMediaId(id);
+
+  if (!media) return null;
+
+  const [season, episode] = media.suffix;
 
   return {
-    imdbId,
+    identifiers: media.identifiers,
     season: Number(season),
     episode: Number(episode)
   };
@@ -299,31 +327,30 @@ function parseSeriesId(id) {
 
 async function loadTorrents({ apiKey, type, id }) {
   if (type === "movie") {
-    return searchMovie(apiKey, id);
+    const media = parseMediaId(id);
+    return media
+      ? searchMovie(apiKey, media.identifiers)
+      : [];
   }
 
   if (type === "series") {
-    const {
-      imdbId,
-      season,
-      episode
-    } = parseSeriesId(id);
+    const series = parseSeriesId(id);
 
     if (
-      !imdbId ||
-      !Number.isInteger(season) ||
-      !Number.isInteger(episode) ||
-      season < 0 ||
-      episode < 0
+      !series ||
+      !Number.isInteger(series.season) ||
+      !Number.isInteger(series.episode) ||
+      series.season < 0 ||
+      series.episode < 0
     ) {
       return [];
     }
 
     return searchSeries(
       apiKey,
-      imdbId,
-      season,
-      episode
+      series.identifiers,
+      series.season,
+      series.episode
     );
   }
 
@@ -395,9 +422,24 @@ async function getStreams(params) {
   ).filter(Boolean);
 
   console.log(
-    `[stream] ${type}/${id} | qualités=${requestedQualities.join(
-      ","
-    )} | torrents=${torrents.length} | streams=${streams.length}`
+    `[stream] ${type}/${id} | torrents=${torrents.length} | ` +
+    requestedQualities
+      .map((quality) => {
+        const candidates = torrents.filter(
+          (torrent) =>
+            detectQuality(torrent.title) === quality &&
+            torrent.infoHash &&
+            Number(torrent.seeders) > 0
+        ).length;
+        const ready = streams.filter(
+          (stream) =>
+            stream.behaviorHints?.bingeGroup ===
+            `tr4ker-${quality}`
+        ).length;
+
+        return `${quality}=${ready}/${candidates}`;
+      })
+      .join(" | ")
   );
 
   return { streams };

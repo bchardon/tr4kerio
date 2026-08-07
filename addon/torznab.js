@@ -135,18 +135,27 @@ async function requestTorznab(params) {
     .filter((torrent) => torrent.infoHash);
 }
 
-async function searchMovie(apiKey, imdbId) {
-  const normalizedApiKey = String(apiKey || "").trim();
-  const normalizedImdbId = String(imdbId || "").trim();
+function normalizeIdentifiers(identifiers = {}) {
+  const imdbid = String(identifiers.imdbid || "").trim();
+  const tmdbid = String(identifiers.tmdbid || "").trim();
 
-  if (!normalizedApiKey || !normalizedImdbId) {
+  if (/^tt\d+$/i.test(imdbid)) return { imdbid };
+  if (/^\d+$/.test(tmdbid)) return { tmdbid };
+  return null;
+}
+
+async function searchMovie(apiKey, identifiers) {
+  const normalizedApiKey = String(apiKey || "").trim();
+  const normalizedIdentifiers = normalizeIdentifiers(identifiers);
+
+  if (!normalizedApiKey || !normalizedIdentifiers) {
     return [];
   }
 
   return requestTorznab({
     t: "movie",
     apikey: normalizedApiKey,
-    imdbid: normalizedImdbId,
+    ...normalizedIdentifiers,
     cat: "2000,2010,2040",
     limit: 100
   });
@@ -154,19 +163,19 @@ async function searchMovie(apiKey, imdbId) {
 
 async function searchSeries(
   apiKey,
-  imdbId,
+  identifiers,
   season,
   episode
 ) {
   const normalizedApiKey = String(apiKey || "").trim();
-  const normalizedImdbId = String(imdbId || "").trim();
+  const normalizedIdentifiers = normalizeIdentifiers(identifiers);
 
   const normalizedSeason = Number(season);
   const normalizedEpisode = Number(episode);
 
   if (
     !normalizedApiKey ||
-    !normalizedImdbId ||
+    !normalizedIdentifiers ||
     !Number.isInteger(normalizedSeason) ||
     !Number.isInteger(normalizedEpisode)
   ) {
@@ -176,7 +185,7 @@ async function searchSeries(
   return requestTorznab({
     t: "tvsearch",
     apikey: normalizedApiKey,
-    imdbid: normalizedImdbId,
+    ...normalizedIdentifiers,
     season: normalizedSeason,
     ep: normalizedEpisode,
     cat: "5000,5040,5070",

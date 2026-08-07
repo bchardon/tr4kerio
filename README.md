@@ -7,10 +7,11 @@ Addon Stremio minimal pour interroger l’API Torznab de TR4KER, filtrer les ré
 - Page web de configuration
 - Clé API TR4KER par utilisateur
 - Filtre 4K, 1080p, 720p ou toutes qualités
-- Films via `t=movie&imdbid=...`
-- Séries via `t=tvsearch&imdbid=...&season=...&ep=...`
+- Films via `t=movie`
+- Séries via `t=tvsearch&season=...&ep=...`
+- Identifiants IMDb et TMDB compatibles
 - Détection REMUX, BluRay, WEB-DL, WEBRip, HDR, Dolby Vision, codecs, audio et langues
-- Tri par qualité de source puis seeders
+- Tri par seeders puis qualité de source
 - Déduplication par infohash
 - Docker et Docker Compose
 

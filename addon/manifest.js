@@ -1,6 +1,10 @@
-function getManifest(configured = false) {
+function getManifest(configurationId) {
+  const configured = Boolean(configurationId);
+
   return {
-    id: "community.tr4ker.torznab",
+    id: ["community.tr4ker.torznab", configurationId]
+      .filter(Boolean)
+      .join("."),
     version: "1.0.7",
     name: "TR4KER",
     description: "Résultats TR4KER via Torznab",
@@ -9,7 +13,7 @@ function getManifest(configured = false) {
     resources: ["stream"],
     types: ["movie", "series"],
     catalogs: [],
-    idPrefixes: ["tt"],
+    idPrefixes: ["tt", "tmdb"],
 
     behaviorHints: {
       configurable: true,
