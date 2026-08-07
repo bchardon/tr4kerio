@@ -1,8 +1,8 @@
 {
   "name": "tr4kerio",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "private": true,
-  "description": "Addon Stremio Torznab pour TR4KER",
+  "description": "Addon Nuvio pour TR4KER",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

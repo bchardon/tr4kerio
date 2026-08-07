@@ -7,21 +7,26 @@ const { getStreams } = require("./addon/addon");
 const app = express();
 const PORT = Number(process.env.PORT || 7000);
 
+// Nécessaire derrière un reverse proxy pour générer une URL d'icône en HTTPS.
 app.set("trust proxy", true);
 
+// Crée un identifiant court et stable propre à chaque combinaison clé/qualité.
 function getConfigurationId({ apikey, quality }) {
+  // L'identifiant reste déterministe tout en masquant les paramètres sensibles.
   return createHash("sha256")
     .update(`${apikey}\0${quality}`)
     .digest("hex")
     .slice(0, 12);
 }
 
+// Produit l'URL absolue de l'icône à partir du domaine qui reçoit la requête.
 function getLogoUrl(req) {
   return `${req.protocol}://${req.get("host")}/icon.png`;
 }
 
 app.disable("x-powered-by");
 
+// Nuvio interroge l'addon depuis une autre origine et ne doit pas mettre les clés en cache.
 app.use((_req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -35,6 +40,7 @@ app.use(
   })
 );
 
+// Le manifeste sans paramètres dirige le client vers la configuration de l'addon.
 app.get("/health", (_req, res) => res.json({ ok: true }));
 app.get("/manifest.json", (req, res) =>
   res.json(getManifest(undefined, getLogoUrl(req)))
@@ -49,12 +55,14 @@ app.get("/:apikey/:quality/manifest.json", (req, res) =>
   )
 );
 
+// Cette route répond au protocole stream commun à Nuvio et Stremio.
 app.get("/:apikey/:quality/stream/:type/:id.json", async (req, res) => {
   try {
     const result = await getStreams(req.params);
     res.json(result);
   } catch (error) {
     console.error(`[stream] ${error.message}`);
+    // Une réponse vide reste exploitable par le client lorsqu'une source échoue.
     res.json({ streams: [] });
   }
 });

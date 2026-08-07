@@ -9,6 +9,7 @@ const RESULTS_PER_QUALITY = Math.max(
   Number(process.env.RESULTS_PER_QUALITY || 2)
 );
 
+// L'ordre des règles détermine la variante retenue lorsqu'un titre en contient plusieurs.
 const QUALITY_RULES = [
   {
     value: "4k",
@@ -125,6 +126,7 @@ function findRule(title, rules) {
   return rules.find(({ pattern }) => pattern.test(title));
 }
 
+// Retourne tous les libellés dont la règle apparaît dans le nom de la release.
 function findLabels(title, rules) {
   return rules
     .filter(({ pattern }) => pattern.test(title))
@@ -135,7 +137,11 @@ function detectQuality(title) {
   return findRule(title, QUALITY_RULES)?.value || "other";
 }
 
+/**
+ * Convertit la valeur stockée dans l'URL en une liste de qualités reconnues.
+ */
 function parseRequestedQualities(value) {
+  // Accepte les séparateurs employés dans les anciennes URL de configuration.
   const normalized = String(value || "1080p")
     .toLowerCase()
     .replace(/[+|;]/g, ",");
@@ -203,7 +209,11 @@ function qualityLabel(quality) {
   )?.label || quality;
 }
 
+/**
+ * Construit le texte détaillé présenté sous une source dans Nuvio ou Stremio.
+ */
 function createDescription(torrent, playback) {
+  // Les détails techniques peuvent se trouver dans le nom du torrent ou du fichier.
   const releaseTitle = [torrent.title, playback.fileName]
     .filter(Boolean)
     .join(" ");
@@ -234,12 +244,16 @@ function createDescription(torrent, playback) {
     .join("\n");
 }
 
+/**
+ * Filtre, classe et limite les meilleurs torrents pour chaque qualité demandée.
+ */
 function selectTorrentsByQuality(
   torrents,
   requestedQualities
 ) {
   const selected = [];
   const usedInfoHashes = new Set();
+  // Les seeders priment, puis la qualité de la source et enfin la taille du fichier.
   const rankedTorrents = torrents
     .filter(
       ({ infoHash, seeders }) =>
@@ -293,7 +307,11 @@ function selectTorrentsByQuality(
   return selected;
 }
 
+/**
+ * Sépare l'identifiant du média de l'éventuel suffixe saison/épisode.
+ */
 function parseMediaId(id) {
+  // Nuvio fournit un identifiant IMDb ou « tmdb:<id> », suivi de la saison/épisode.
   const parts = id.split(":");
 
   if (/^tt\d+$/i.test(parts[0])) {
@@ -316,6 +334,9 @@ function parseMediaId(id) {
   return null;
 }
 
+/**
+ * Extrait et convertit en nombres la saison et l'épisode demandés par le client.
+ */
 function parseSeriesId(id) {
   const media = parseMediaId(id);
 
@@ -330,6 +351,9 @@ function parseSeriesId(id) {
   };
 }
 
+/**
+ * Choisit la recherche Torznab adaptée au type de contenu demandé.
+ */
 async function loadTorrents({ apiKey, type, id }) {
   if (type === "movie") {
     const media = parseMediaId(id);
@@ -362,6 +386,9 @@ async function loadTorrents({ apiKey, type, id }) {
   return [];
 }
 
+/**
+ * Enrichit un résultat Torznab et le transforme en objet stream compatible.
+ */
 async function createStream(torrent) {
   try {
     const playback = await getPlaybackMetadata(torrent);
@@ -405,6 +432,9 @@ async function createStream(torrent) {
   }
 }
 
+/**
+ * Orchestre une requête : recherche, sélection et préparation des torrents.
+ */
 async function getStreams(params) {
   const apiKey = String(params.apikey || "").trim();
   const type = String(params.type || "").trim();

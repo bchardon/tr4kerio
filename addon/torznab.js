@@ -14,6 +14,7 @@ const REQUEST_TIMEOUT_MS = Math.max(
   Number(process.env.REQUEST_TIMEOUT_MS || 15000)
 );
 
+// Conserve les attributs Torznab tout en uniformisant les balises avec namespace.
 const xmlParser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: "",
@@ -23,6 +24,7 @@ const xmlParser = new XMLParser({
   parseAttributeValue: false
 });
 
+// parse-torrent est un module ESM : son import dynamique est mémorisé après le premier appel.
 let parseTorrentModule;
 const seriesTitleCache = new Map();
 
@@ -35,11 +37,13 @@ async function getParseTorrent() {
   return parseTorrentModule;
 }
 
+// Uniformise les champs XML qui peuvent contenir un objet unique ou une liste.
 function asArray(value) {
   if (value == null) return [];
   return Array.isArray(value) ? value : [value];
 }
 
+// Extrait une chaîne propre depuis une valeur XML simple ou un nœud « #text ».
 function normalizeText(value) {
   if (value === undefined || value === null) {
     return "";
@@ -54,6 +58,7 @@ function normalizeText(value) {
   return String(value).trim();
 }
 
+// Recherche un attribut Torznab sans tenir compte de la casse de son nom.
 function getAttribute(item, attributeName) {
   const attributes = asArray(item?.attr);
 
@@ -86,6 +91,9 @@ function normalizeInfoHash(value) {
     : "";
 }
 
+/**
+ * Convertit un élément RSS Torznab en objet torrent utilisé par l'addon.
+ */
 function parseTorrentItem(item) {
   const title = normalizeText(item?.title);
 
@@ -111,6 +119,9 @@ function parseTorrentItem(item) {
   };
 }
 
+/**
+ * Interroge TR4KER, analyse le XML et ne conserve que les torrents valides.
+ */
 async function requestTorznab(params) {
   const response = await axios.get(TORZNAB_URL, {
     params,
@@ -140,6 +151,7 @@ async function requestTorznab(params) {
     .filter((torrent) => torrent.infoHash);
 }
 
+// Valide les identifiants avant de les transmettre à une API distante.
 function normalizeIdentifiers(identifiers = {}) {
   const imdbid = String(identifiers.imdbid || "").trim();
   const tmdbid = String(identifiers.tmdbid || "").trim();
@@ -149,9 +161,13 @@ function normalizeIdentifiers(identifiers = {}) {
   return null;
 }
 
+/**
+ * Résout et met en cache le titre d'une série depuis son identifiant IMDb.
+ */
 async function getSeriesTitle(imdbid) {
   if (!imdbid) return "";
 
+  // La recherche TV de TR4KER est plus fiable avec le titre résolu par Cinemeta.
   if (!seriesTitleCache.has(imdbid)) {
     const request = axios
       .get(
@@ -175,6 +191,7 @@ async function getSeriesTitle(imdbid) {
   return seriesTitleCache.get(imdbid);
 }
 
+// Couvre les écritures S01E02, 1x02 et « season 1 episode 2 ».
 function getEpisodePattern(season, episode) {
   return new RegExp(
     `\\b(?:` +
@@ -187,6 +204,7 @@ function getEpisodePattern(season, episode) {
   );
 }
 
+// Reconnaît un numéro de saison dans les principaux formats de nommage.
 function getSeasonPattern(season) {
   return new RegExp(
     `\\b(?:s(?:eason)?[ ._-]*0*${season})\\b`,
@@ -197,7 +215,11 @@ function getSeasonPattern(season) {
 const ANY_EPISODE_PATTERN =
   /\b(?:s0*\d+[ ._-]*e0*\d+|0*\d+x0*\d+|season[ ./_-]*\d+[ ./_-]+(?:episode|ep)[ ._-]*\d+)\b/i;
 
+/**
+ * Classe une release comme épisode exact, pack ou résultat non pertinent.
+ */
 function getSeriesReleaseType(title, season, episode) {
+  // Écarte les épisodes voisins, mais conserve l'épisode demandé et les packs de saison.
   if (getEpisodePattern(season, episode).test(title)) {
     return "episode";
   }
@@ -211,6 +233,9 @@ function getSeriesReleaseType(title, season, episode) {
     : null;
 }
 
+/**
+ * Sélectionne le bon fichier vidéo et conserve son index dans le torrent.
+ */
 function getVideoFile(files, torrent) {
   const videoExtensions =
     /\.(mkv|mp4|avi|mov|m4v|ts|m2ts|webm)$/i;
@@ -234,6 +259,7 @@ function getVideoFile(files, torrent) {
       : [];
 
   if (torrent.seasonPack && episodeFiles.length === 0) {
+    // Ne jamais lancer arbitrairement le plus gros fichier d'un pack incomplet.
     throw new Error(
       `Épisode S${torrent.requestedSeason}E${torrent.requestedEpisode} ` +
       `introuvable dans ${torrent.title}`
@@ -246,6 +272,9 @@ function getVideoFile(files, torrent) {
   ).sort((first, second) => second.size - first.size)[0];
 }
 
+/**
+ * Recherche jusqu'à 100 films avec l'identifiant compris par TR4KER.
+ */
 async function searchMovie(apiKey, identifiers) {
   const normalizedApiKey = String(apiKey || "").trim();
   const normalizedIdentifiers = normalizeIdentifiers(identifiers);
@@ -263,6 +292,9 @@ async function searchMovie(apiKey, identifiers) {
   });
 }
 
+/**
+ * Recherche une saison, puis filtre localement l'épisode et les packs compatibles.
+ */
 async function searchSeries(
   apiKey,
   identifiers,
@@ -288,6 +320,7 @@ async function searchSeries(
     normalizedIdentifiers.imdbid
   );
 
+  // « ep » est volontairement omis : TR4KER renvoie alors aussi les packs de saison.
   const torrents = await requestTorznab({
     t: "tvsearch",
     apikey: normalizedApiKey,
@@ -314,6 +347,9 @@ async function searchSeries(
   });
 }
 
+/**
+ * Analyse le .torrent pour obtenir son hash, ses trackers et le fichier à lire.
+ */
 async function getPlaybackMetadata(torrent) {
   if (!torrent.downloadUrl) {
     throw new Error(
@@ -321,6 +357,7 @@ async function getPlaybackMetadata(torrent) {
     );
   }
 
+  // Le fichier .torrent fournit les trackers et l'index exact à lire dans un pack.
   const response = await axios.get(torrent.downloadUrl, {
     responseType: "arraybuffer",
     timeout: REQUEST_TIMEOUT_MS,
