@@ -8,18 +8,14 @@ Addon Stremio minimal pour interroger l’API Torznab de TR4KER, filtrer les ré
 ## Fonctions
 
 - Page web de configuration
-- Icône TR4KERIO personnalisée
-- Clé API TR4KER par utilisateur
 - Filtre 4K, 1080p, 720p ou toutes qualités
-- Films via `t=movie`
-- Séries via `t=tvsearch&q=...&season=...`, puis filtrage local de l’épisode
 - Identifiants IMDb et TMDB compatibles
 - Résolution du titre des séries IMDb via Cinemeta pour la recherche Torznab
 - Filtrage local des épisodes et sélection du bon fichier dans les packs de saison
 - Détection REMUX, BluRay, WEB-DL, WEBRip, HDR, Dolby Vision, codecs, audio et langues
 - Tri par seeders puis qualité de source
 - Déduplication par infohash
-- Docker et Docker Compose
+- Docker et Docker Compose pour déploiement 
 
 ## Démarrage local
 
@@ -58,7 +54,7 @@ server {
 
 Gérer le certificat TLS avec Certbot ou le proxy déjà présent sur le VPS.
 
-## Installation Stremio
+## Installation Nuvio
 
 1. Ouvrir `https://tr4ker.monsite.com`.
 2. Saisir la clé API.
