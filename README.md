@@ -1,4 +1,4 @@
-# TR4KER Stremio Addon
+# TR4KERIO
 
 Addon Stremio minimal pour interroger l’API Torznab de TR4KER, filtrer les résultats par qualité et les trier automatiquement.
 
@@ -11,7 +11,7 @@ Addon Stremio minimal pour interroger l’API Torznab de TR4KER, filtrer les ré
 - Séries via `t=tvsearch&q=...&season=...`, puis filtrage local de l’épisode
 - Identifiants IMDb et TMDB compatibles
 - Résolution du titre des séries IMDb via Cinemeta pour la recherche Torznab
-- Filtrage local des épisodes et prise en charge des packs de saison
+- Filtrage local des épisodes et sélection du bon fichier dans les packs de saison
 - Détection REMUX, BluRay, WEB-DL, WEBRip, HDR, Dolby Vision, codecs, audio et langues
 - Tri par seeders puis qualité de source
 - Déduplication par infohash
@@ -32,7 +32,7 @@ Vérifier les variables d’environnement dans `docker-compose.yml`, notamment
 `TORZNAB_URL`, puis lancer :
 
 ```bash
-docker compose up -d --build
+docker compose up -d --build --remove-orphans
 ```
 
 ## Reverse proxy

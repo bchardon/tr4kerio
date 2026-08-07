@@ -120,7 +120,7 @@ async function requestTorznab(params) {
       Accept:
         "application/rss+xml, application/xml, text/xml, */*",
       "User-Agent":
-        "TR4KER-Stremio-Addon/1.0"
+        "TR4KERIO/1.0"
     }
   });
 
@@ -211,7 +211,7 @@ function getSeriesReleaseType(title, season, episode) {
     : null;
 }
 
-function getVideoFileIndex(files, torrent) {
+function getVideoFile(files, torrent) {
   const videoExtensions =
     /\.(mkv|mp4|avi|mov|m4v|ts|m2ts|webm)$/i;
   const videoFiles = files
@@ -243,7 +243,7 @@ function getVideoFileIndex(files, torrent) {
   return (episodeFiles.length > 0
     ? episodeFiles
     : videoFiles
-  ).sort((first, second) => second.size - first.size)[0]?.index;
+  ).sort((first, second) => second.size - first.size)[0];
 }
 
 async function searchMovie(apiKey, identifiers) {
@@ -360,11 +360,23 @@ async function getPlaybackMetadata(torrent) {
   }
 
   const files = asArray(parsedTorrent.files);
-  const fileIdx = getVideoFileIndex(files, torrent);
+  const videoFile = getVideoFile(files, torrent);
+  const fileName = videoFile?.path
+    .split(/[\\/]/)
+    .pop();
+
+  if (torrent.seasonPack) {
+    console.log(
+      `[pack] ${torrent.title} | ` +
+      `fileIdx=${videoFile.index} | fichier=${fileName}`
+    );
+  }
 
   return {
     infoHash,
-    fileIdx,
+    fileIdx: videoFile?.index,
+    fileName,
+    fileSize: videoFile?.size || 0,
     sources: trackers.map(
       (tracker) => `tracker:${tracker}`
     )

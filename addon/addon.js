@@ -203,12 +203,15 @@ function qualityLabel(quality) {
   )?.label || quality;
 }
 
-function createDescription(torrent) {
-  const source = detectSource(torrent.title).label;
-  const codec = detectCodec(torrent.title);
-  const hdr = detectHdr(torrent.title);
-  const audio = detectAudio(torrent.title);
-  const languages = detectLanguages(torrent.title);
+function createDescription(torrent, playback) {
+  const releaseTitle = [torrent.title, playback.fileName]
+    .filter(Boolean)
+    .join(" ");
+  const source = detectSource(releaseTitle).label;
+  const codec = detectCodec(releaseTitle);
+  const hdr = detectHdr(releaseTitle);
+  const audio = detectAudio(releaseTitle);
+  const languages = detectLanguages(releaseTitle);
 
   const technicalDetails = [
     source,
@@ -219,11 +222,13 @@ function createDescription(torrent) {
   ].filter(Boolean);
 
   return [
-    torrent.title,
-    technicalDetails.join(" • "),
-    `Taille : ${formatSize(torrent.size)}`,
-    `Seeders : ${torrent.seeders}`,
-    `Leechers : ${torrent.leechers}`
+    `🎞️ ${playback.fileName || torrent.title}`,
+    `⚙️ ${technicalDetails.join(" • ")}`,
+    `💾 Taille : ${formatSize(
+      playback.fileSize || torrent.size
+    )}`,
+    `🌱 Seeders : ${torrent.seeders}`,
+    `🔻 Leechers : ${torrent.leechers}`
   ]
     .filter(Boolean)
     .join("\n");
@@ -360,10 +365,10 @@ async function loadTorrents({ apiKey, type, id }) {
 async function createStream(torrent) {
   try {
     const playback = await getPlaybackMetadata(torrent);
-    const description = createDescription(torrent);
+    const description = createDescription(torrent, playback);
 
     const stream = {
-      name: `TR4KER ${qualityLabel(
+      name: `TR4KERIO ${qualityLabel(
         torrent.detectedQuality
       )}`,
 
@@ -373,8 +378,12 @@ async function createStream(torrent) {
       infoHash: playback.infoHash,
 
       behaviorHints: {
-        bingeGroup: `tr4ker-${torrent.detectedQuality}`,
-        videoSize: Number(torrent.size) || 0
+        bingeGroup: `tr4kerio-${torrent.detectedQuality}`,
+        videoSize:
+          playback.fileSize || Number(torrent.size) || 0,
+        ...(playback.fileName
+          ? { filename: playback.fileName }
+          : {})
       }
     };
 
@@ -434,7 +443,7 @@ async function getStreams(params) {
         const ready = streams.filter(
           (stream) =>
             stream.behaviorHints?.bingeGroup ===
-            `tr4ker-${quality}`
+            `tr4kerio-${quality}`
         ).length;
 
         return `${quality}=${ready}/${candidates}`;

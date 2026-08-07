@@ -62,5 +62,5 @@ app.use((_req, res) =>
 );
 
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`TR4KER Stremio Addon lancé sur le port ${PORT}`);
+  console.log(`TR4KERIO lancé sur le port ${PORT}`);
 });

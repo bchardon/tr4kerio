@@ -2,11 +2,11 @@ function getManifest(configurationId) {
   const configured = Boolean(configurationId);
 
   return {
-    id: ["community.tr4ker.torznab", configurationId]
+    id: ["community.tr4kerio.torznab", configurationId]
       .filter(Boolean)
       .join("."),
     version: "1.0.7",
-    name: "TR4KER",
+    name: "TR4KERIO",
     description: "Résultats TR4KER via Torznab",
     logo: "https://tr4ker.net/favicon.ico",
 

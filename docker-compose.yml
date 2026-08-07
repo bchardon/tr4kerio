@@ -1,7 +1,7 @@
 services:
-  tr4ker-addon:
+  tr4kerio:
     build: .
-    container_name: tr4ker-addon
+    container_name: tr4kerio
     restart: unless-stopped
 
     environment:
