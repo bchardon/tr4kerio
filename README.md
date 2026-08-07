@@ -45,7 +45,7 @@ Le domaine public doit pointer vers le port 7000 du conteneur et utiliser HTTPS.
 
 ```nginx
 server {
-    server_name tr4ker.monsite.ch;
+    server_name tr4ker.monsite.com;
 
     location / {
         proxy_pass http://127.0.0.1:7000;
@@ -60,7 +60,7 @@ Gérer le certificat TLS avec Certbot ou le proxy déjà présent sur le VPS.
 
 ## Installation Stremio
 
-1. Ouvrir `https://tr4ker.monsite.ch`.
+1. Ouvrir `https://tr4ker.monsite.com`.
 2. Saisir la clé API.
 3. Choisir la qualité.
 4. Cliquer sur **Installer dans Stremio**.
@@ -68,7 +68,7 @@ Gérer le certificat TLS avec Certbot ou le proxy déjà présent sur le VPS.
 La configuration produit une URL de la forme :
 
 ```text
-https://tr4ker.monsite.ch/CLE_API/1080p/manifest.json
+https://tr4ker.monsite.com/CLE_API/1080p/manifest.json
 ```
 
 Cette URL contient la clé API. Elle doit rester privée.
