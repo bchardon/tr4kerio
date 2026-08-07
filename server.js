@@ -7,11 +7,17 @@ const { getStreams } = require("./addon/addon");
 const app = express();
 const PORT = Number(process.env.PORT || 7000);
 
+app.set("trust proxy", true);
+
 function getConfigurationId({ apikey, quality }) {
   return createHash("sha256")
     .update(`${apikey}\0${quality}`)
     .digest("hex")
     .slice(0, 12);
+}
+
+function getLogoUrl(req) {
+  return `${req.protocol}://${req.get("host")}/icon.png`;
 }
 
 app.disable("x-powered-by");
@@ -30,10 +36,17 @@ app.use(
 );
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
-app.get("/manifest.json", (_req, res) => res.json(getManifest()));
+app.get("/manifest.json", (req, res) =>
+  res.json(getManifest(undefined, getLogoUrl(req)))
+);
 
 app.get("/:apikey/:quality/manifest.json", (req, res) =>
-  res.json(getManifest(getConfigurationId(req.params)))
+  res.json(
+    getManifest(
+      getConfigurationId(req.params),
+      getLogoUrl(req)
+    )
+  )
 );
 
 app.get("/:apikey/:quality/stream/:type/:id.json", async (req, res) => {

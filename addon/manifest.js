@@ -1,4 +1,4 @@
-function getManifest(configurationId) {
+function getManifest(configurationId, logo) {
   const configured = Boolean(configurationId);
 
   return {
@@ -8,7 +8,7 @@ function getManifest(configurationId) {
     version: "1.0.7",
     name: "TR4KERIO",
     description: "Résultats TR4KER via Torznab",
-    logo: "https://tr4ker.net/favicon.ico",
+    logo,
 
     resources: ["stream"],
     types: ["movie", "series"],

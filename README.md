@@ -5,6 +5,7 @@ Addon Stremio minimal pour interroger l’API Torznab de TR4KER, filtrer les ré
 ## Fonctions
 
 - Page web de configuration
+- Icône TR4KERIO personnalisée
 - Clé API TR4KER par utilisateur
 - Filtre 4K, 1080p, 720p ou toutes qualités
 - Films via `t=movie`
