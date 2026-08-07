@@ -5,6 +5,10 @@ const TORZNAB_URL =
   process.env.TORZNAB_URL ||
   "https://tr4ker.net/api/torznab";
 
+const CINEMETA_URL =
+  process.env.CINEMETA_URL ||
+  "https://v3-cinemeta.strem.io";
+
 const REQUEST_TIMEOUT_MS = Math.max(
   1000,
   Number(process.env.REQUEST_TIMEOUT_MS || 15000)
@@ -20,6 +24,7 @@ const xmlParser = new XMLParser({
 });
 
 let parseTorrentModule;
+const seriesTitleCache = new Map();
 
 async function getParseTorrent() {
   if (!parseTorrentModule) {
@@ -144,6 +149,32 @@ function normalizeIdentifiers(identifiers = {}) {
   return null;
 }
 
+async function getSeriesTitle(imdbid) {
+  if (!imdbid) return "";
+
+  if (!seriesTitleCache.has(imdbid)) {
+    const request = axios
+      .get(
+        `${CINEMETA_URL}/meta/series/${encodeURIComponent(
+          imdbid
+        )}.json`,
+        { timeout: REQUEST_TIMEOUT_MS }
+      )
+      .then(({ data }) => normalizeText(data?.meta?.name))
+      .catch((error) => {
+        seriesTitleCache.delete(imdbid);
+        console.error(
+          `[metadata] ${imdbid}: ${error.message}`
+        );
+        return "";
+      });
+
+    seriesTitleCache.set(imdbid, request);
+  }
+
+  return seriesTitleCache.get(imdbid);
+}
+
 async function searchMovie(apiKey, identifiers) {
   const normalizedApiKey = String(apiKey || "").trim();
   const normalizedIdentifiers = normalizeIdentifiers(identifiers);
@@ -182,13 +213,16 @@ async function searchSeries(
     return [];
   }
 
+  const title = await getSeriesTitle(
+    normalizedIdentifiers.imdbid
+  );
+
   return requestTorznab({
     t: "tvsearch",
     apikey: normalizedApiKey,
-    ...normalizedIdentifiers,
+    ...(title ? { q: title } : normalizedIdentifiers),
     season: normalizedSeason,
     ep: normalizedEpisode,
-    cat: "5000,5040,5070",
     limit: 100
   });
 }

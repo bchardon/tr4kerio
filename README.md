@@ -10,6 +10,7 @@ Addon Stremio minimal pour interroger l’API Torznab de TR4KER, filtrer les ré
 - Films via `t=movie`
 - Séries via `t=tvsearch&season=...&ep=...`
 - Identifiants IMDb et TMDB compatibles
+- Résolution du titre des séries IMDb via Cinemeta pour la recherche Torznab
 - Détection REMUX, BluRay, WEB-DL, WEBRip, HDR, Dolby Vision, codecs, audio et langues
 - Tri par seeders puis qualité de source
 - Déduplication par infohash
