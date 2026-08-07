@@ -37,28 +37,121 @@ docker compose up -d --build --remove-orphans
 
 ## Reverse proxy
 
-Le domaine public doit pointer vers le port 7000 du conteneur et utiliser HTTPS. Exemple Nginx :
+Le domaine public doit utiliser HTTPS et transmettre les requêtes ordinaires au
+port 7000 de l’addon. `TRACKER_PROXY_URL` est facultative, mais recommandée pour
+les clients qui ne parviennent pas à joindre directement le tracker privé.
 
-```nginx
-server {
-    server_name tr4ker.monsite.com;
+Avec la valeur suivante :
 
-    location / {
-        proxy_pass http://127.0.0.1:7000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+```yaml
+TRACKER_PROXY_URL: https://tr4ker.monsite.com/tracker
+```
+
+le reverse proxy doit :
+
+- transmettre l’addon à `tr4kerio:7000` ;
+- retirer le préfixe `/tracker` avant de contacter `https://tk.tr4ker.net` ;
+- remplacer uniquement `left=18446744073709551615` par `left=1`, valeur envoyée
+  temporairement par TorrServer tant que les métadonnées sont inconnues ;
+- ne pas enregistrer les requêtes `/tracker/*`, car leur chemin contient le
+  passkey privé du tracker.
+
+Si le reverse proxy ne partage pas le réseau Docker de l’addon, remplacer
+`tr4kerio:7000` par l’adresse réellement accessible, par exemple
+`127.0.0.1:7000` si le port est publié localement.
+
+### Caddy
+
+Caddy obtient et renouvelle automatiquement le certificat TLS :
+
+```caddyfile
+tr4ker.monsite.com {
+    handle_path /tracker/* {
+        log_skip
+
+        # TorrServer utilise cette valeur avant de connaître la taille du torrent.
+        uri query left ^18446744073709551615$ 1
+
+        reverse_proxy https://tk.tr4ker.net {
+            header_up Host tk.tr4ker.net
+        }
+    }
+
+    handle {
+        reverse_proxy tr4kerio:7000
     }
 }
 ```
 
-Gérer le certificat TLS avec Certbot ou le proxy déjà présent sur le VPS.
+Valider puis recharger la configuration :
 
-`TRACKER_PROXY_URL` est facultative. Lorsqu’elle est définie, l’addon remplace
-uniquement l’origine `https://tk.tr4ker.net` des annonceurs par cette URL, tout
-en conservant leur chemin et leurs paramètres. Par exemple, avec
-`https://tr4ker.monsite.com/tracker`, le reverse proxy doit retirer le préfixe
-`/tracker` et transmettre la requête à `https://tk.tr4ker.net`.
+```bash
+caddy validate --config /etc/caddy/Caddyfile
+caddy reload --config /etc/caddy/Caddyfile
+```
+
+Dans Docker, les mêmes commandes peuvent être lancées avec
+`docker exec caddy caddy ...`.
+
+### Nginx
+
+Le bloc `map` doit être placé dans le contexte `http` de Nginx, généralement
+dans `nginx.conf` ou dans un fichier inclus depuis celui-ci. Il permet de
+modifier `left` sans supprimer les autres paramètres de l’annonce :
+
+```nginx
+map $args $tr4ker_tracker_args {
+    default $args;
+
+    ~^left=18446744073709551615(?<tr4ker_tail>&.*)?$
+        "left=1${tr4ker_tail}";
+
+    ~^(?<tr4ker_head>.*&)left=18446744073709551615(?<tr4ker_rest>&.*)?$
+        "${tr4ker_head}left=1${tr4ker_rest}";
+}
+
+server {
+    listen 80;
+    server_name tr4ker.monsite.com;
+
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name tr4ker.monsite.com;
+
+    ssl_certificate /etc/letsencrypt/live/tr4ker.monsite.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/tr4ker.monsite.com/privkey.pem;
+
+    location ^~ /tracker/ {
+        access_log off;
+
+        set $args $tr4ker_tracker_args;
+        proxy_pass https://tk.tr4ker.net/;
+        proxy_ssl_server_name on;
+        proxy_ssl_name tk.tr4ker.net;
+        proxy_set_header Host tk.tr4ker.net;
+    }
+
+    location / {
+        proxy_pass http://tr4kerio:7000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Adapter les chemins des certificats si nécessaire, puis vérifier la
+configuration avant son rechargement :
+
+```bash
+nginx -t
+nginx -s reload
+```
 
 ## Installation Nuvio
 
