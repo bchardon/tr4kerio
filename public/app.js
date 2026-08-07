@@ -7,21 +7,15 @@ const installLink = document.getElementById("install-link");
 const copyButton = document.getElementById("copy");
 
 function createManifestUrl(apiKey, quality) {
-  const origin = window.location.origin.replace(/\/$/, "");
-
-  return `${origin}/${encodeURIComponent(apiKey)}/${encodeURIComponent(
-    quality
-  )}/manifest.json`;
+  return `${window.location.origin}/${encodeURIComponent(
+    apiKey
+  )}/${encodeURIComponent(quality)}/manifest.json`;
 }
 
 function createStremioUrl(manifestUrl) {
   return manifestUrl.replace(/^https?:\/\//i, "stremio://");
 }
 
-/*
- * Préremplit le formulaire après avoir cliqué sur
- * "Configurer" dans Stremio.
- */
 const query = new URLSearchParams(window.location.search);
 const queryApiKey = query.get("apikey");
 const queryQuality = query.get("quality");
@@ -41,7 +35,6 @@ if (
 
 form.addEventListener("submit", (event) => {
   event.preventDefault();
-  event.stopPropagation();
 
   const apiKey = apiKeyInput.value.trim();
   const quality = qualityInput.value;
@@ -59,18 +52,7 @@ form.addEventListener("submit", (event) => {
   installLink.href = stremioUrl;
   resultSection.hidden = false;
 
-  /*
-   * Lance Stremio pendant l'action utilisateur.
-   */
   window.location.assign(stremioUrl);
-});
-
-installLink.addEventListener("click", () => {
-  const manifestUrl = manifestInput.value.trim();
-
-  if (manifestUrl) {
-    installLink.href = createStremioUrl(manifestUrl);
-  }
 });
 
 copyButton.addEventListener("click", async () => {
@@ -87,10 +69,9 @@ copyButton.addEventListener("click", async () => {
     document.execCommand("copy");
   }
 
-  const previousText = copyButton.textContent;
   copyButton.textContent = "Copié";
 
   setTimeout(() => {
-    copyButton.textContent = previousText;
+    copyButton.textContent = "Copier";
   }, 1200);
 });

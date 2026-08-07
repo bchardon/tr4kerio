@@ -25,7 +25,8 @@ Ouvrir `http://localhost:7000`.
 
 ## Docker
 
-Modifier `PUBLIC_URL` dans `docker-compose.yml` si nécessaire, puis :
+Vérifier les variables d’environnement dans `docker-compose.yml`, notamment
+`TORZNAB_URL`, puis lancer :
 
 ```bash
 docker compose up -d --build

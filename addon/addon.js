@@ -9,259 +9,173 @@ const RESULTS_PER_QUALITY = Math.max(
   Number(process.env.RESULTS_PER_QUALITY || 2)
 );
 
-const QUALITY_ORDER = ["4k", "1080p", "720p"];
+const QUALITY_RULES = [
+  {
+    value: "4k",
+    label: "4K",
+    pattern: /\b(?:2160[pi]?|4k|uhd)\b/i
+  },
+  {
+    value: "1080p",
+    label: "1080p",
+    pattern: /\b1080[pi]?\b/i
+  },
+  {
+    value: "720p",
+    label: "720p",
+    pattern: /\b720[pi]?\b/i
+  }
+];
+
+const QUALITY_ALIASES = {
+  "2160": "4k",
+  "2160p": "4k",
+  "4k": "4k",
+  uhd: "4k",
+  "1080": "1080p",
+  "1080p": "1080p",
+  "720": "720p",
+  "720p": "720p"
+};
+
+const SOURCE_RULES = [
+  {
+    label: "REMUX",
+    score: 600,
+    pattern: /\bremux\b/i
+  },
+  {
+    label: "BluRay",
+    score: 500,
+    pattern: /\bblu[\s._-]?ray\b/i
+  },
+  {
+    label: "WEB-DL",
+    score: 400,
+    pattern: /\bweb[\s._-]?dl\b/i
+  },
+  {
+    label: "WEBRip",
+    score: 300,
+    pattern: /\bweb[\s._-]?rip\b/i
+  },
+  {
+    label: "HDTV",
+    score: 200,
+    pattern: /\bhdtv\b/i
+  }
+];
+
+const DEFAULT_SOURCE = {
+  label: "Torrent",
+  score: 100
+};
+
+const CODEC_RULES = [
+  { label: "AV1", pattern: /\bav1\b/i },
+  {
+    label: "HEVC",
+    pattern: /\b(?:x265|h\.?265|hevc)\b/i
+  },
+  {
+    label: "H.264",
+    pattern: /\b(?:x264|h\.?264|avc)\b/i
+  }
+];
+
+const HDR_RULES = [
+  {
+    label: "Dolby Vision",
+    pattern: /\b(?:dv|dolby[ ._-]?vision)\b/i
+  },
+  {
+    label: "HDR",
+    pattern: /\b(?:hdr10\+?|hdr)\b/i
+  }
+];
+
+const AUDIO_RULES = [
+  { label: "TrueHD", pattern: /\btruehd\b/i },
+  {
+    label: "DTS",
+    pattern: /\bdts(?:[ ._-]?hd)?\b/i
+  },
+  {
+    label: "DD+",
+    pattern: /\b(?:ddp|dd\+|eac3|e-ac-3)\b/i
+  },
+  { label: "AC3", pattern: /\bac-?3\b/i },
+  { label: "AAC", pattern: /\baac\b/i }
+];
+
+const LANGUAGE_RULES = [
+  { label: "MULTi", pattern: /\bmulti\b/i },
+  { label: "VFI", pattern: /\bvfi\b/i },
+  { label: "VFF", pattern: /\bvff\b/i },
+  { label: "VFQ", pattern: /\bvfq\b/i },
+  { label: "VOSTFR", pattern: /\bvostfr\b/i },
+  {
+    label: "FR",
+    pattern: /\b(?:french|truefrench)\b/i
+  }
+];
+
+function findRule(title, rules) {
+  return rules.find(({ pattern }) => pattern.test(title));
+}
+
+function findLabels(title, rules) {
+  return rules
+    .filter(({ pattern }) => pattern.test(title))
+    .map(({ label }) => label);
+}
 
 function detectQuality(title) {
-  const normalizedTitle = String(title || "").toLowerCase();
-
-  if (
-    /\b2160[pi]?\b/i.test(normalizedTitle) ||
-    /\b4k\b/i.test(normalizedTitle) ||
-    /\buhd\b/i.test(normalizedTitle)
-  ) {
-    return "4k";
-  }
-
-  if (/\b1080[pi]?\b/i.test(normalizedTitle)) {
-    return "1080p";
-  }
-
-  if (/\b720[pi]?\b/i.test(normalizedTitle)) {
-    return "720p";
-  }
-
-  return "other";
+  return findRule(title, QUALITY_RULES)?.value || "other";
 }
 
 function parseRequestedQualities(value) {
-  let normalized;
-
-  try {
-    normalized = decodeURIComponent(
-      String(value || "1080p")
-    );
-  } catch {
-    normalized = String(value || "1080p");
-  }
-
-  normalized = normalized
+  const normalized = String(value || "1080p")
     .toLowerCase()
-    .replace(/\+/g, ",")
-    .replace(/\|/g, ",")
-    .replace(/;/g, ",");
+    .replace(/[+|;]/g, ",");
 
   if (normalized === "all") {
-    return [...QUALITY_ORDER];
+    return QUALITY_RULES.map(({ value: quality }) => quality);
   }
 
-  const requested = normalized
-    .split(",")
-    .map((quality) => quality.trim())
-    .map((quality) => {
-      if (
-        quality === "2160p" ||
-        quality === "2160" ||
-        quality === "4k" ||
-        quality === "uhd"
-      ) {
-        return "4k";
-      }
-
-      if (
-        quality === "1080" ||
-        quality === "1080p"
-      ) {
-        return "1080p";
-      }
-
-      if (
-        quality === "720" ||
-        quality === "720p"
-      ) {
-        return "720p";
-      }
-
-      return null;
-    })
-    .filter(Boolean);
-
-  return Array.from(new Set(requested));
-}
-
-function getSourceScore(title) {
-  const normalizedTitle = String(title || "").toLowerCase();
-
-  if (/\bremux\b/i.test(normalizedTitle)) {
-    return 600;
-  }
-
-  if (
-    /\bblu[\s._-]?ray\b/i.test(normalizedTitle) ||
-    /\bbluray\b/i.test(normalizedTitle)
-  ) {
-    return 500;
-  }
-
-  if (
-    /\bweb[\s._-]?dl\b/i.test(normalizedTitle) ||
-    /\bwebdl\b/i.test(normalizedTitle)
-  ) {
-    return 400;
-  }
-
-  if (
-    /\bweb[\s._-]?rip\b/i.test(normalizedTitle) ||
-    /\bwebrip\b/i.test(normalizedTitle)
-  ) {
-    return 300;
-  }
-
-  if (/\bhdtv\b/i.test(normalizedTitle)) {
-    return 200;
-  }
-
-  return 100;
+  return [
+    ...new Set(
+      normalized
+        .split(",")
+        .map((quality) => QUALITY_ALIASES[quality.trim()])
+        .filter(Boolean)
+    )
+  ];
 }
 
 function detectSource(title) {
-  const normalizedTitle = String(title || "");
-
-  if (/\bremux\b/i.test(normalizedTitle)) {
-    return "REMUX";
-  }
-
-  if (
-    /\bblu[\s._-]?ray\b/i.test(normalizedTitle) ||
-    /\bbluray\b/i.test(normalizedTitle)
-  ) {
-    return "BluRay";
-  }
-
-  if (
-    /\bweb[\s._-]?dl\b/i.test(normalizedTitle) ||
-    /\bwebdl\b/i.test(normalizedTitle)
-  ) {
-    return "WEB-DL";
-  }
-
-  if (
-    /\bweb[\s._-]?rip\b/i.test(normalizedTitle) ||
-    /\bwebrip\b/i.test(normalizedTitle)
-  ) {
-    return "WEBRip";
-  }
-
-  if (/\bhdtv\b/i.test(normalizedTitle)) {
-    return "HDTV";
-  }
-
-  return "Torrent";
+  return findRule(title, SOURCE_RULES) || DEFAULT_SOURCE;
 }
 
 function detectCodec(title) {
-  const normalizedTitle = String(title || "");
-
-  if (/\bav1\b/i.test(normalizedTitle)) {
-    return "AV1";
-  }
-
-  if (
-    /\b(x265|h\.?265|hevc)\b/i.test(normalizedTitle)
-  ) {
-    return "HEVC";
-  }
-
-  if (
-    /\b(x264|h\.?264|avc)\b/i.test(normalizedTitle)
-  ) {
-    return "H.264";
-  }
-
-  return null;
+  return findRule(title, CODEC_RULES)?.label || null;
 }
 
 function detectHdr(title) {
-  const normalizedTitle = String(title || "");
-  const formats = [];
-
-  if (
-    /\b(dv|dolby[ ._-]?vision)\b/i.test(
-      normalizedTitle
-    )
-  ) {
-    formats.push("Dolby Vision");
-  }
-
-  if (
-    /\bhdr10\+?\b|\bhdr\b/i.test(normalizedTitle)
-  ) {
-    formats.push("HDR");
-  }
-
-  return formats;
+  return findLabels(title, HDR_RULES);
 }
 
 function detectAudio(title) {
-  const normalizedTitle = String(title || "");
-  const formats = [];
+  const audio = findRule(title, AUDIO_RULES)?.label;
 
-  if (/\batmos\b/i.test(normalizedTitle)) {
-    formats.push("Atmos");
-  }
-
-  if (/\btruehd\b/i.test(normalizedTitle)) {
-    formats.push("TrueHD");
-  } else if (
-    /\bdts(?:[ ._-]?hd)?\b/i.test(normalizedTitle)
-  ) {
-    formats.push("DTS");
-  } else if (
-    /\b(ddp|dd\+|eac3|e-ac-3)\b/i.test(
-      normalizedTitle
-    )
-  ) {
-    formats.push("DD+");
-  } else if (/\bac-?3\b/i.test(normalizedTitle)) {
-    formats.push("AC3");
-  } else if (/\baac\b/i.test(normalizedTitle)) {
-    formats.push("AAC");
-  }
-
-  return formats;
+  return [
+    /\batmos\b/i.test(title) ? "Atmos" : null,
+    audio
+  ].filter(Boolean);
 }
 
 function detectLanguages(title) {
-  const normalizedTitle = String(title || "");
-  const languages = [];
-
-  if (/\bmulti\b/i.test(normalizedTitle)) {
-    languages.push("MULTi");
-  }
-
-  if (/\bvfi\b/i.test(normalizedTitle)) {
-    languages.push("VFI");
-  }
-
-  if (/\bvff\b/i.test(normalizedTitle)) {
-    languages.push("VFF");
-  }
-
-  if (/\bvfq\b/i.test(normalizedTitle)) {
-    languages.push("VFQ");
-  }
-
-  if (/\bvostfr\b/i.test(normalizedTitle)) {
-    languages.push("VOSTFR");
-  }
-
-  if (
-    /\bfrench\b/i.test(normalizedTitle) ||
-    /\btruefrench\b/i.test(normalizedTitle)
-  ) {
-    languages.push("FR");
-  }
-
-  return Array.from(new Set(languages));
+  return findLabels(title, LANGUAGE_RULES);
 }
 
 function formatSize(bytes) {
@@ -283,23 +197,13 @@ function formatSize(bytes) {
 }
 
 function qualityLabel(quality) {
-  if (quality === "4k") {
-    return "4K";
-  }
-
-  if (quality === "1080p") {
-    return "1080p";
-  }
-
-  if (quality === "720p") {
-    return "720p";
-  }
-
-  return String(quality || "");
+  return QUALITY_RULES.find(
+    ({ value }) => value === quality
+  )?.label || quality;
 }
 
 function createDescription(torrent) {
-  const source = detectSource(torrent.title);
+  const source = detectSource(torrent.title).label;
   const codec = detectCodec(torrent.title);
   const hdr = detectHdr(torrent.title);
   const audio = detectAudio(torrent.title);
@@ -315,7 +219,6 @@ function createDescription(torrent) {
 
   return [
     torrent.title,
-    "",
     technicalDetails.join(" • "),
     `Taille : ${formatSize(torrent.size)}`,
     `Seeders : ${torrent.seeders}`,
@@ -331,49 +234,36 @@ function selectTorrentsByQuality(
 ) {
   const selected = [];
   const usedInfoHashes = new Set();
+  const rankedTorrents = torrents
+    .filter(
+      ({ infoHash, seeders }) =>
+        infoHash && Number(seeders) > 0
+    )
+    .map((torrent) => ({
+      torrent,
+      quality: detectQuality(torrent.title),
+      sourceScore: detectSource(torrent.title).score
+    }))
+    .sort((first, second) =>
+      second.sourceScore - first.sourceScore ||
+      Number(second.torrent.seeders) -
+        Number(first.torrent.seeders) ||
+      Number(first.torrent.size) -
+        Number(second.torrent.size)
+    );
 
   for (const quality of requestedQualities) {
-    const qualityResults = torrents
-      .filter(
-        (torrent) =>
-          detectQuality(torrent.title) === quality
-      )
-      .filter(
-        (torrent) =>
-          torrent.infoHash &&
-          Number(torrent.seeders || 0) > 0
-      )
-      .sort((first, second) => {
-        const sourceDifference =
-          getSourceScore(second.title) -
-          getSourceScore(first.title);
-
-        if (sourceDifference !== 0) {
-          return sourceDifference;
-        }
-
-        const seedDifference =
-          Number(second.seeders || 0) -
-          Number(first.seeders || 0);
-
-        if (seedDifference !== 0) {
-          return seedDifference;
-        }
-
-        return (
-          Number(first.size || 0) -
-          Number(second.size || 0)
-        );
-      });
-
     let addedForQuality = 0;
 
-    for (const torrent of qualityResults) {
-      const infoHash = String(
-        torrent.infoHash || ""
-      ).toLowerCase();
+    for (const result of rankedTorrents) {
+      if (result.quality !== quality) {
+        continue;
+      }
 
-      if (!infoHash || usedInfoHashes.has(infoHash)) {
+      const { torrent } = result;
+      const infoHash = torrent.infoHash.toLowerCase();
+
+      if (usedInfoHashes.has(infoHash)) {
         continue;
       }
 
@@ -398,20 +288,16 @@ function selectTorrentsByQuality(
 }
 
 function parseSeriesId(id) {
-  const parts = String(id || "").split(":");
+  const [imdbId, season, episode] = id.split(":");
 
   return {
-    imdbId: parts[0],
-    season: Number(parts[1]),
-    episode: Number(parts[2])
+    imdbId,
+    season: Number(season),
+    episode: Number(episode)
   };
 }
 
-async function loadTorrents({
-  apiKey,
-  type,
-  id
-}) {
+async function loadTorrents({ apiKey, type, id }) {
   if (type === "movie") {
     return searchMovie(apiKey, id);
   }
@@ -444,11 +330,6 @@ async function loadTorrents({
   return [];
 }
 
-/*
- * Cette fonction est volontairement synchrone.
- * Elle renvoie directement un objet stream Stremio,
- * et non une Promise.
- */
 async function createStream(torrent) {
   try {
     const playback = await getPlaybackMetadata(torrent);
@@ -470,30 +351,14 @@ async function createStream(torrent) {
       }
     };
 
-    /*
-     * Transmet le tracker extrait du fichier .torrent,
-     * y compris lorsqu'il utilise HTTPS.
-     */
-    if (
-      Array.isArray(playback.sources) &&
-      playback.sources.length > 0
-    ) {
+    if (playback.sources.length > 0) {
       stream.sources = playback.sources;
     }
 
-    /*
-     * Indique à Stremio quel fichier vidéo lire.
-     */
     if (Number.isInteger(playback.fileIdx)) {
       stream.fileIdx = playback.fileIdx;
     }
 
-    console.log(
-      `[stream préparé] ${torrent.title} | ` +
-      `sources=${playback.sources?.length || 0} | ` +
-      `fileIdx=${stream.fileIdx ?? "absent"}`
-    );
-    console.log(JSON.stringify(stream, null, 2));
     return stream;
   } catch (error) {
     console.error(
@@ -505,17 +370,9 @@ async function createStream(torrent) {
 }
 
 async function getStreams(params) {
-  const apiKey = String(
-    params.apikey || ""
-  ).trim();
-
-  const type = String(
-    params.type || ""
-  ).trim();
-
-  const id = String(
-    params.id || ""
-  ).trim();
+  const apiKey = String(params.apikey || "").trim();
+  const type = String(params.type || "").trim();
+  const id = String(params.id || "").trim();
 
   if (!apiKey || !type || !id) {
     return { streams: [] };
@@ -528,39 +385,22 @@ async function getStreams(params) {
     return { streams: [] };
   }
 
-  try {
-    const torrents = await loadTorrents({
-      apiKey,
-      type,
-      id
-    });
+  const torrents = await loadTorrents({ apiKey, type, id });
+  const selectedTorrents = selectTorrentsByQuality(
+    torrents,
+    requestedQualities
+  );
+  const streams = (
+    await Promise.all(selectedTorrents.map(createStream))
+  ).filter(Boolean);
 
-    const selectedTorrents =
-      selectTorrentsByQuality(
-        Array.isArray(torrents) ? torrents : [],
-        requestedQualities
-      );
+  console.log(
+    `[stream] ${type}/${id} | qualités=${requestedQualities.join(
+      ","
+    )} | torrents=${torrents.length} | streams=${streams.length}`
+  );
 
-    const streams = (
-      await Promise.all(
-        selectedTorrents.map(createStream)
-      )
-    ).filter(Boolean);
-
-    console.log(
-      `[stream] ${type}/${id} | qualités=${requestedQualities.join(
-        ","
-      )} | torrents=${torrents.length} | streams=${streams.length}`
-    );
-
-    return { streams };
-  } catch (error) {
-    console.error(
-      `[stream] Erreur pour ${type}/${id}: ${error.message}`
-    );
-
-    return { streams: [] };
-  }
+  return { streams };
 }
 
 module.exports = {

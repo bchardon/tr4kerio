@@ -31,10 +31,7 @@ async function getParseTorrent() {
 }
 
 function asArray(value) {
-  if (value === undefined || value === null) {
-    return [];
-  }
-
+  if (value == null) return [];
   return Array.isArray(value) ? value : [value];
 }
 
@@ -44,11 +41,9 @@ function normalizeText(value) {
   }
 
   if (typeof value === "object") {
-    if (typeof value["#text"] === "string") {
-      return value["#text"].trim();
-    }
-
-    return "";
+    return typeof value["#text"] === "string"
+      ? value["#text"].trim()
+      : "";
   }
 
   return String(value).trim();
@@ -64,23 +59,16 @@ function getAttribute(item, attributeName) {
       String(attributeName).toLowerCase()
   );
 
-  return attribute
-    ? normalizeText(attribute.value)
-    : "";
+  return normalizeText(attribute?.value);
 }
 
 function getEnclosureUrl(item) {
   const enclosure = item?.enclosure;
-
-  if (!enclosure) {
-    return "";
-  }
-
-  if (typeof enclosure === "string") {
-    return enclosure.trim();
-  }
-
-  return normalizeText(enclosure.url);
+  return normalizeText(
+    typeof enclosure === "object"
+      ? enclosure?.url
+      : enclosure
+  );
 }
 
 function normalizeInfoHash(value) {
@@ -104,42 +92,17 @@ function parseTorrentItem(item) {
     getAttribute(item, "infohash")
   );
 
-  const enclosureUrl = getEnclosureUrl(item);
-  const linkUrl = normalizeText(item?.link);
-  const detailsUrl =
-    normalizeText(item?.comments) ||
-    normalizeText(item?.guid);
-
-  const size =
-    Number(getAttribute(item, "size")) ||
-    Number(item?.enclosure?.length) ||
-    0;
-
-  const seeders =
-    Number(getAttribute(item, "seeders")) || 0;
-
-  const leechers =
-    Number(getAttribute(item, "leechers")) || 0;
-
   return {
     title,
     infoHash,
-    downloadUrl: enclosureUrl || linkUrl,
-    detailsUrl,
-    size,
-    seeders,
-    leechers,
-    peers:
-      Number(getAttribute(item, "peers")) || 0,
-    grabs:
-      Number(getAttribute(item, "grabs")) || 0,
-    category: getAttribute(item, "category"),
-    imdb:
-      getAttribute(item, "imdb") ||
-      getAttribute(item, "imdbid"),
-    tmdbId: getAttribute(item, "tmdbid"),
-    tvdbId: getAttribute(item, "tvdbid"),
-    publishedAt: normalizeText(item?.pubDate)
+    downloadUrl:
+      getEnclosureUrl(item) || normalizeText(item?.link),
+    size:
+      Number(getAttribute(item, "size")) ||
+      Number(item?.enclosure?.length) ||
+      0,
+    seeders: Number(getAttribute(item, "seeders")) || 0,
+    leechers: Number(getAttribute(item, "leechers")) || 0
   };
 }
 
@@ -148,8 +111,6 @@ async function requestTorznab(params) {
     params,
     timeout: REQUEST_TIMEOUT_MS,
     responseType: "text",
-    validateStatus: (status) =>
-      status >= 200 && status < 300,
     headers: {
       Accept:
         "application/rss+xml, application/xml, text/xml, */*",
@@ -168,22 +129,15 @@ async function requestTorznab(params) {
     );
   }
 
-  const items = asArray(channel.item);
-
-  return items
+  return asArray(channel.item)
     .map(parseTorrentItem)
     .filter(Boolean)
     .filter((torrent) => torrent.infoHash);
 }
 
 async function searchMovie(apiKey, imdbId) {
-  const normalizedApiKey = String(
-    apiKey || ""
-  ).trim();
-
-  const normalizedImdbId = String(
-    imdbId || ""
-  ).trim();
+  const normalizedApiKey = String(apiKey || "").trim();
+  const normalizedImdbId = String(imdbId || "").trim();
 
   if (!normalizedApiKey || !normalizedImdbId) {
     return [];
@@ -204,13 +158,8 @@ async function searchSeries(
   season,
   episode
 ) {
-  const normalizedApiKey = String(
-    apiKey || ""
-  ).trim();
-
-  const normalizedImdbId = String(
-    imdbId || ""
-  ).trim();
+  const normalizedApiKey = String(apiKey || "").trim();
+  const normalizedImdbId = String(imdbId || "").trim();
 
   const normalizedSeason = Number(season);
   const normalizedEpisode = Number(episode);
@@ -255,9 +204,6 @@ async function getPlaybackMetadata(torrent) {
   const torrentBuffer = Buffer.from(response.data);
   const parseTorrent = await getParseTorrent();
 
-  /*
-   * IMPORTANT : parseTorrent est asynchrone.
-   */
   const parsedTorrent = await parseTorrent(torrentBuffer);
 
   const trackers = Array.from(
@@ -309,14 +255,6 @@ async function getPlaybackMetadata(torrent) {
       }
     });
   }
-
-  console.log(
-    `[torrent] ${torrent.title} | ` +
-    `infoHash=${infoHash} | ` +
-    `trackers=${trackers.length} | ` +
-    `private=${Boolean(parsedTorrent.private)} | ` +
-    `files=${files.length}`
-  );
 
   return {
     infoHash,
