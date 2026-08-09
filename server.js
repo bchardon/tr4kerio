@@ -11,10 +11,10 @@ const PORT = Number(process.env.PORT || 7000);
 app.set("trust proxy", true);
 
 // Crée un identifiant court et stable propre à chaque combinaison clé/qualité.
-function getConfigurationId({ apikey, quality }) {
+function getConfigurationId({ apikey, quality, client = "nuvio" }) {
   // L'identifiant reste déterministe tout en masquant les paramètres sensibles.
   return createHash("sha256")
-    .update(`${apikey}\0${quality}`)
+    .update(`${apikey}\0${quality}\0${client}`)
     .digest("hex")
     .slice(0, 12);
 }
@@ -22,6 +22,14 @@ function getConfigurationId({ apikey, quality }) {
 // Produit l'URL absolue de l'icône à partir du domaine qui reçoit la requête.
 function getLogoUrl(req) {
   return `${req.protocol}://${req.get("host")}/icon.png`;
+}
+
+// Limite le client aux deux variantes proposées par la page de configuration.
+function normalizeClient(value = "nuvio") {
+  const client = String(value).toLowerCase();
+  return client === "nuvio" || client === "stremio"
+    ? client
+    : null;
 }
 
 app.disable("x-powered-by");
@@ -46,24 +54,43 @@ app.get("/manifest.json", (req, res) =>
   res.json(getManifest(undefined, getLogoUrl(req)))
 );
 
-app.get("/:apikey/:quality/manifest.json", (req, res) =>
-  res.json(
+app.get([
+  "/:apikey/:quality/manifest.json",
+  "/:apikey/:quality/:client/manifest.json"
+], (req, res) => {
+  const client = normalizeClient(req.params.client);
+
+  if (!client) {
+    return res.status(404).json({ error: "Client inconnu" });
+  }
+
+  return res.json(
     getManifest(
-      getConfigurationId(req.params),
-      getLogoUrl(req)
+      getConfigurationId({ ...req.params, client }),
+      getLogoUrl(req),
+      client
     )
-  )
-);
+  );
+});
 
 // Cette route répond au protocole stream commun à Nuvio et Stremio.
-app.get("/:apikey/:quality/stream/:type/:id.json", async (req, res) => {
+app.get([
+  "/:apikey/:quality/stream/:type/:id.json",
+  "/:apikey/:quality/:client/stream/:type/:id.json"
+], async (req, res) => {
+  const client = normalizeClient(req.params.client);
+
+  if (!client) {
+    return res.status(404).json({ streams: [] });
+  }
+
   try {
-    const result = await getStreams(req.params);
-    res.json(result);
+    const result = await getStreams({ ...req.params, client });
+    return res.json(result);
   } catch (error) {
     console.error(`[stream] ${error.message}`);
     // Une réponse vide reste exploitable par le client lorsqu'une source échoue.
-    res.json({ streams: [] });
+    return res.json({ streams: [] });
   }
 });
 
@@ -71,11 +98,22 @@ app.get("/configure", (_req, res) => {
   res.redirect("/");
 });
 
-app.get("/:apikey/:quality/configure", (req, res) => {
+app.get([
+  "/:apikey/:quality/configure",
+  "/:apikey/:quality/:client/configure"
+], (req, res) => {
+  const client = normalizeClient(req.params.client);
+
+  if (!client) {
+    return res.status(404).json({ error: "Client inconnu" });
+  }
+
   const apikey = encodeURIComponent(req.params.apikey);
   const quality = encodeURIComponent(req.params.quality);
 
-  res.redirect(`/?apikey=${apikey}&quality=${quality}`);
+  return res.redirect(
+    `/?apikey=${apikey}&quality=${quality}&client=${client}`
+  );
 });
 
 app.use((_req, res) =>

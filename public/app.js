@@ -7,21 +7,25 @@ const installLink = document.getElementById("install-link");
 const copyButton = document.getElementById("copy");
 
 // Assemble l'adresse du manifeste en encodant les paramètres placés dans le chemin.
-function createManifestUrl(apiKey, quality) {
-  // La configuration est placée dans le chemin de base conservé par Nuvio.
+function createManifestUrl(apiKey, quality, client) {
+  // Le client reste dans le chemin de base et détermine le relais tracker utilisé.
   return `${window.location.origin}/${encodeURIComponent(
     apiKey
-  )}/${encodeURIComponent(quality)}/manifest.json`;
+  )}/${encodeURIComponent(quality)}/${client}/manifest.json`;
 }
 
-// Transforme une URL web en lien profond compris par l'application Stremio.
-function createStremioUrl(manifestUrl) {
-  return manifestUrl.replace(/^https?:\/\//i, "stremio://");
+// Transforme le manifeste en lien profond propre à l'application choisie.
+function createInstallUrl(manifestUrl, client) {
+  return manifestUrl.replace(
+    /^https?:\/\//i,
+    `${client}://`
+  );
 }
 
 const query = new URLSearchParams(window.location.search);
 const queryApiKey = query.get("apikey");
 const queryQuality = query.get("quality");
+const queryClient = query.get("client");
 
 // Préremplit le formulaire lorsqu'il est rouvert depuis la route /configure.
 if (queryApiKey) {
@@ -43,6 +47,14 @@ form.addEventListener("submit", (event) => {
 
   const apiKey = apiKeyInput.value.trim();
   const quality = qualityInput.value;
+  const submittedClient = event.submitter?.value;
+  const client = ["nuvio", "stremio"].includes(
+    submittedClient
+  )
+    ? submittedClient
+    : queryClient === "stremio"
+      ? "stremio"
+      : "nuvio";
 
   if (!apiKey) {
     alert("Renseigne ta clé API TR4KER.");
@@ -50,15 +62,22 @@ form.addEventListener("submit", (event) => {
     return;
   }
 
-  const manifestUrl = createManifestUrl(apiKey, quality);
-  const stremioUrl = createStremioUrl(manifestUrl);
+  const manifestUrl = createManifestUrl(
+    apiKey,
+    quality,
+    client
+  );
+  const installUrl = createInstallUrl(manifestUrl, client);
 
   manifestInput.value = manifestUrl;
-  installLink.href = stremioUrl;
+  installLink.href = installUrl;
+  installLink.textContent = `Ouvrir ${
+    client === "stremio" ? "Stremio" : "Nuvio"
+  }`;
   resultSection.hidden = false;
 
-  // Le protocole stremio:// transmet directement le manifeste à l'application.
-  window.location.assign(stremioUrl);
+  // Le protocole personnalisé transmet directement le manifeste à l'application.
+  window.location.assign(installUrl);
 });
 
 // Copie le manifeste avec une solution de repli pour les anciens navigateurs.

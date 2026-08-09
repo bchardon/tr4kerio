@@ -1,6 +1,6 @@
 # TR4KERIO
 
-Addon Nuvio minimal pour interroger l’API Torznab de TR4KER, filtrer les résultats par qualité et les trier automatiquement.
+Addon Nuvio et Stremio minimal pour interroger l’API Torznab de TR4KER, filtrer les résultats par qualité et les trier automatiquement.
 
 <img width="600" height="541" alt="Screenshot_2026-08-07_18-26-23" src="https://github.com/user-attachments/assets/1aa7a43d-2737-4115-abd3-4eab08b9bba7" />
 
@@ -29,7 +29,7 @@ Ouvrir `http://localhost:7000`.
 ## Docker
 
 Vérifier les variables d’environnement dans `docker-compose.yml`, notamment
-`TORZNAB_URL` et `TRACKER_PROXY_URL`, puis lancer :
+`TORZNAB_URL`, `TRACKER_PROXY_URL` et `STREMIO_TRACKER_PROXY_URL`, puis lancer :
 
 ```bash
 docker compose up -d --build --remove-orphans
@@ -38,13 +38,16 @@ docker compose up -d --build --remove-orphans
 ## Reverse proxy
 
 Le domaine public doit utiliser HTTPS et transmettre les requêtes ordinaires au
-port 7000 de l’addon. `TRACKER_PROXY_URL` est facultative, mais recommandée pour
-les clients qui ne parviennent pas à joindre directement le tracker privé.
+port 7000 de l’addon. Deux relais peuvent être déclarés :
+
+- `TRACKER_PROXY_URL` utilise HTTPS pour Nuvio ;
+- `STREMIO_TRACKER_PROXY_URL` utilise HTTP pour la compatibilité avec le moteur torrent de Stremio.
 
 Avec la valeur suivante :
 
 ```yaml
 TRACKER_PROXY_URL: https://tr4ker.monsite.com/tracker
+STREMIO_TRACKER_PROXY_URL: http://tracker-stremio.monsite.com/tracker
 ```
 
 le reverse proxy doit :
@@ -62,7 +65,8 @@ Si le reverse proxy ne partage pas le réseau Docker de l’addon, remplacer
 
 ### Caddy
 
-Caddy obtient et renouvelle automatiquement le certificat TLS :
+Caddy obtient et renouvelle automatiquement le certificat TLS du domaine de
+l’addon. Le second domaine reste volontairement en HTTP pour Stremio :
 
 ```caddyfile
 tr4ker.monsite.com {
@@ -81,7 +85,23 @@ tr4ker.monsite.com {
         reverse_proxy tr4kerio:7000
     }
 }
+
+http://tracker-stremio.monsite.com {
+    handle_path /tracker/* {
+        log_skip
+
+        uri query left ^18446744073709551615$ 1
+
+        reverse_proxy https://tk.tr4ker.net {
+            header_up Host tk.tr4ker.net
+        }
+    }
+}
 ```
+
+Le relais HTTP ne transporte que les annonces BitTorrent, pas la vidéo. Son URL
+contient néanmoins le passkey du tracker en clair sur le réseau : réserver cette
+variante aux appareils ou réseaux pour lesquels ce compromis est acceptable.
 
 Valider puis recharger la configuration :
 
@@ -115,6 +135,21 @@ server {
     server_name tr4ker.monsite.com;
 
     return 301 https://$host$request_uri;
+}
+
+server {
+    listen 80;
+    server_name tracker-stremio.monsite.com;
+
+    location ^~ /tracker/ {
+        access_log off;
+
+        set $args $tr4ker_tracker_args;
+        proxy_pass https://tk.tr4ker.net/;
+        proxy_ssl_server_name on;
+        proxy_ssl_name tk.tr4ker.net;
+        proxy_set_header Host tk.tr4ker.net;
+    }
 }
 
 server {
@@ -153,17 +188,18 @@ nginx -t
 nginx -s reload
 ```
 
-## Installation Nuvio
+## Installation
 
 1. Ouvrir `https://tr4ker.monsite.com`.
 2. Saisir la clé API.
 3. Choisir la qualité.
-4. Cliquer sur **Installer dans Stremio**.
+4. Cliquer sur **Installer dans Nuvio** ou **Installer dans Stremio**.
 
 La configuration produit une URL de la forme :
 
 ```text
-https://tr4ker.monsite.com/CLE_API/1080p/manifest.json
+https://tr4ker.monsite.com/CLE_API/1080p/nuvio/manifest.json
+https://tr4ker.monsite.com/CLE_API/1080p/stremio/manifest.json
 ```
 
 Cette URL contient la clé API. Elle doit rester privée.

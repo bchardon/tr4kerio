@@ -13,6 +13,10 @@ const TRACKER_PROXY_URL = String(
   process.env.TRACKER_PROXY_URL || ""
 ).replace(/\/+$/, "");
 
+const STREMIO_TRACKER_PROXY_URL = String(
+  process.env.STREMIO_TRACKER_PROXY_URL || ""
+).replace(/\/+$/, "");
+
 const REQUEST_TIMEOUT_MS = Math.max(
   1000,
   Number(process.env.REQUEST_TIMEOUT_MS || 15000)
@@ -96,11 +100,16 @@ function normalizeInfoHash(value) {
 }
 
 /**
- * Fait passer uniquement le tracker privé TR4KER par le relais HTTPS configuré.
+ * Fait passer uniquement le tracker privé TR4KER par le relais du client.
  * Le chemin contenant le passkey et les paramètres d'annonce restent inchangés.
  */
-function getPlaybackTrackerUrl(tracker) {
-  if (!TRACKER_PROXY_URL) return tracker;
+function getPlaybackTrackerUrl(tracker, client) {
+  const proxyUrl =
+    client === "stremio"
+      ? STREMIO_TRACKER_PROXY_URL
+      : TRACKER_PROXY_URL;
+
+  if (!proxyUrl) return tracker;
 
   try {
     const trackerUrl = new URL(tracker);
@@ -110,7 +119,7 @@ function getPlaybackTrackerUrl(tracker) {
     }
 
     return (
-      `${TRACKER_PROXY_URL}${trackerUrl.pathname}` +
+      `${proxyUrl}${trackerUrl.pathname}` +
       trackerUrl.search
     );
   } catch {
@@ -377,7 +386,7 @@ async function searchSeries(
 /**
  * Analyse le .torrent pour obtenir son hash, ses trackers et le fichier à lire.
  */
-async function getPlaybackMetadata(torrent) {
+async function getPlaybackMetadata(torrent, client = "nuvio") {
   if (!torrent.downloadUrl) {
     throw new Error(
       `URL de téléchargement absente pour ${torrent.title}`
@@ -443,7 +452,7 @@ async function getPlaybackMetadata(torrent) {
     fileSize: videoFile?.size || 0,
     sources: trackers.map(
       (tracker) =>
-        `tracker:${getPlaybackTrackerUrl(tracker)}`
+        `tracker:${getPlaybackTrackerUrl(tracker, client)}`
     )
   };
 }
