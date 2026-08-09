@@ -29,7 +29,7 @@ Ouvrir `http://localhost:7000`.
 ## Docker
 
 Vérifier les variables d’environnement dans `docker-compose.yml`, notamment
-`TORZNAB_URL`, `TRACKER_PROXY_URL` et `STREMIO_TRACKER_PROXY_URL`, puis lancer :
+`TORZNAB_URL`, `TRACKER_PROXY_URL` et `HTTP_TRACKER_PROXY_URL`, puis lancer :
 
 ```bash
 docker compose up -d --build --remove-orphans
@@ -40,20 +40,21 @@ docker compose up -d --build --remove-orphans
 Le domaine public doit utiliser HTTPS et transmettre les requêtes ordinaires au
 port 7000 de l’addon. Deux relais peuvent être déclarés :
 
-- `TRACKER_PROXY_URL` utilise HTTPS pour Nuvio ;
-- `STREMIO_TRACKER_PROXY_URL` utilise HTTP pour la compatibilité avec le moteur torrent de Stremio.
+- `TRACKER_PROXY_URL` désigne le relais tracker HTTPS recommandé ;
+- `HTTP_TRACKER_PROXY_URL` désigne le relais HTTP de compatibilité.
 
 Avec la valeur suivante :
 
 ```yaml
 TRACKER_PROXY_URL: https://tr4ker.monsite.com/tracker
-STREMIO_TRACKER_PROXY_URL: http://tracker-stremio.monsite.com/tracker
+HTTP_TRACKER_PROXY_URL: http://tracker-stremio.monsite.com/tracker
 ```
 
 le reverse proxy doit :
 
 - transmettre l’addon à `tr4kerio:7000` ;
 - retirer le préfixe `/tracker` avant de contacter `https://tk.tr4ker.net` ;
+- ajouter `left=1` lorsqu'un client omet complètement ce paramètre ;
 - remplacer uniquement `left=18446744073709551615` par `left=1`, valeur envoyée
   temporairement par TorrServer tant que les métadonnées sont inconnues ;
 - ne pas enregistrer les requêtes `/tracker/*`, car leur chemin contient le
@@ -66,12 +67,18 @@ Si le reverse proxy ne partage pas le réseau Docker de l’addon, remplacer
 ### Caddy
 
 Caddy obtient et renouvelle automatiquement le certificat TLS du domaine de
-l’addon. Le second domaine reste volontairement en HTTP pour Stremio :
+l’addon. Le second domaine reste volontairement en HTTP pour les clients qui
+nécessitent ce mode de compatibilité :
 
 ```caddyfile
 tr4ker.monsite.com {
+    @missingLeft not query left=*
+
     handle_path /tracker/* {
         log_skip
+
+        # Certains clients omettent left pendant la première annonce.
+        uri @missingLeft query +left 1
 
         # TorrServer utilise cette valeur avant de connaître la taille du torrent.
         uri query left ^18446744073709551615$ 1
@@ -87,9 +94,12 @@ tr4ker.monsite.com {
 }
 
 http://tracker-stremio.monsite.com {
+    @missingLeft not query left=*
+
     handle_path /tracker/* {
         log_skip
 
+        uri @missingLeft query +left 1
         uri query left ^18446744073709551615$ 1
 
         reverse_proxy https://tk.tr4ker.net {
@@ -130,6 +140,13 @@ map $args $tr4ker_tracker_args {
         "${tr4ker_head}left=1${tr4ker_rest}";
 }
 
+# Ajoute left=1 uniquement s'il reste absent après la normalisation précédente.
+map $tr4ker_tracker_args $tr4ker_final_tracker_args {
+    "" "left=1";
+    ~(^|&)left= $tr4ker_tracker_args;
+    default "$tr4ker_tracker_args&left=1";
+}
+
 server {
     listen 80;
     server_name tr4ker.monsite.com;
@@ -144,7 +161,7 @@ server {
     location ^~ /tracker/ {
         access_log off;
 
-        set $args $tr4ker_tracker_args;
+        set $args $tr4ker_final_tracker_args;
         proxy_pass https://tk.tr4ker.net/;
         proxy_ssl_server_name on;
         proxy_ssl_name tk.tr4ker.net;
@@ -162,7 +179,7 @@ server {
     location ^~ /tracker/ {
         access_log off;
 
-        set $args $tr4ker_tracker_args;
+        set $args $tr4ker_final_tracker_args;
         proxy_pass https://tk.tr4ker.net/;
         proxy_ssl_server_name on;
         proxy_ssl_name tk.tr4ker.net;
@@ -193,13 +210,17 @@ nginx -s reload
 1. Ouvrir `https://tr4ker.monsite.com`.
 2. Saisir la clé API.
 3. Choisir la qualité.
-4. Cliquer sur **Installer dans Nuvio** ou **Installer dans Stremio**.
+4. Cliquer sur **Installer via HTTPS** (recommandé) ou **Installer via HTTP**
+   si le client ne peut pas joindre le tracker en HTTPS.
+
+Les deux boutons génèrent un lien `stremio://`, reconnu par Stremio comme par
+Nuvio. Le choix porte uniquement sur le protocole du relais tracker.
 
 La configuration produit une URL de la forme :
 
 ```text
-https://tr4ker.monsite.com/CLE_API/1080p/nuvio/manifest.json
-https://tr4ker.monsite.com/CLE_API/1080p/stremio/manifest.json
+https://tr4ker.monsite.com/CLE_API/1080p/https/manifest.json
+https://tr4ker.monsite.com/CLE_API/1080p/http/manifest.json
 ```
 
 Cette URL contient la clé API. Elle doit rester privée.
@@ -207,7 +228,8 @@ Cette URL contient la clé API. Elle doit rester privée.
 ## Sécurité
 
 - Ne jamais committer une clé API.
-- Utiliser exclusivement HTTPS.
+- Servir l'addon et sa page de configuration exclusivement en HTTPS.
+- Préférer le relais tracker HTTPS ; le mode HTTP expose le passkey sur le réseau.
 - Toute personne possédant l’URL du manifest peut voir la clé API.
 - Pour une installation publique, préférer à terme un stockage chiffré avec identifiant de configuration opaque.
 

@@ -389,11 +389,11 @@ async function loadTorrents({ apiKey, type, id }) {
 /**
  * Enrichit un résultat Torznab et le transforme en objet stream compatible.
  */
-async function createStream(torrent, client) {
+async function createStream(torrent, trackerMode) {
   try {
     const playback = await getPlaybackMetadata(
       torrent,
-      client
+      trackerMode
     );
     const description = createDescription(torrent, playback);
 
@@ -442,10 +442,10 @@ async function getStreams(params) {
   const apiKey = String(params.apikey || "").trim();
   const type = String(params.type || "").trim();
   const id = String(params.id || "").trim();
-  const client =
-    String(params.client || "").toLowerCase() === "stremio"
-      ? "stremio"
-      : "nuvio";
+  const trackerMode =
+    String(params.trackerMode || "").toLowerCase() === "http"
+      ? "http"
+      : "https";
 
   if (!apiKey || !type || !id) {
     return { streams: [] };
@@ -466,13 +466,13 @@ async function getStreams(params) {
   const streams = (
     await Promise.all(
       selectedTorrents.map((torrent) =>
-        createStream(torrent, client)
+        createStream(torrent, trackerMode)
       )
     )
   ).filter(Boolean);
 
   console.log(
-    `[stream] ${client}/${type}/${id} | torrents=${torrents.length} | ` +
+    `[stream] ${trackerMode}/${type}/${id} | torrents=${torrents.length} | ` +
     requestedQualities
       .map((quality) => {
         const candidates = torrents.filter(
