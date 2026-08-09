@@ -1,6 +1,6 @@
 {
   "name": "tr4kerio",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "private": true,
   "description": "Addon Nuvio et Stremio pour TR4KER",
   "main": "server.js",

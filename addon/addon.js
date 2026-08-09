@@ -402,7 +402,8 @@ async function createStream(torrent, trackerMode) {
         torrent.detectedQuality
       )}`,
 
-      title: description,
+      // Stremio traite « title » comme un alias de « description » et rejette
+      // silencieusement un stream lorsque les deux propriétés sont présentes.
       description,
 
       infoHash: playback.infoHash,
