@@ -7,11 +7,10 @@ const installLink = document.getElementById("install-link");
 const copyButton = document.getElementById("copy");
 
 // Assemble l'adresse du manifeste en encodant les paramètres placés dans le chemin.
-function createManifestUrl(apiKey, quality, trackerMode) {
-  // Le mode reste dans le chemin de base et détermine le relais tracker utilisé.
+function createManifestUrl(apiKey, quality) {
   return `${window.location.origin}/${encodeURIComponent(
     apiKey
-  )}/${encodeURIComponent(quality)}/${trackerMode}/manifest.json`;
+  )}/${encodeURIComponent(quality)}/https/manifest.json`;
 }
 
 // Stremio et Nuvio reconnaissent tous deux le protocole d'installation stremio://.
@@ -22,14 +21,6 @@ function createInstallUrl(manifestUrl) {
 const query = new URLSearchParams(window.location.search);
 const queryApiKey = query.get("apikey");
 const queryQuality = query.get("quality");
-const legacyClient = query.get("client");
-const queryTrackerMode =
-  query.get("tracker") ||
-  (legacyClient === "stremio"
-    ? "http"
-    : legacyClient === "nuvio"
-      ? "https"
-      : null);
 
 // Préremplit le formulaire lorsqu'il est rouvert depuis la route /configure.
 if (queryApiKey) {
@@ -51,26 +42,13 @@ form.addEventListener("submit", (event) => {
 
   const apiKey = apiKeyInput.value.trim();
   const quality = qualityInput.value;
-  const submittedTrackerMode = event.submitter?.value;
-  const trackerMode = ["https", "http"].includes(
-    submittedTrackerMode
-  )
-    ? submittedTrackerMode
-    : queryTrackerMode === "http"
-      ? "http"
-      : "https";
-
   if (!apiKey) {
     alert("Renseigne ta clé API TR4KER.");
     apiKeyInput.focus();
     return;
   }
 
-  const manifestUrl = createManifestUrl(
-    apiKey,
-    quality,
-    trackerMode
-  );
+  const manifestUrl = createManifestUrl(apiKey, quality);
   const installUrl = createInstallUrl(manifestUrl);
 
   manifestInput.value = manifestUrl;

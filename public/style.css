@@ -11,11 +11,9 @@ input, select, button, .install-link { width: 100%; min-height: 48px; border-rad
 input, select { padding: 0 14px; background: #111827; color: #fff; }
 button, .install-link { display: grid; place-items: center; padding: 0 18px; border: 0; background: #7c3aed; color: #fff; font-weight: 750; cursor: pointer; text-decoration: none; }
 button:hover, .install-link:hover { filter: brightness(1.12); }
-.tracker-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; }
-.http-button { background: #475569; }
-.tracker-note { margin: 0; color: #94a3b8; font-size: .82rem; line-height: 1.45; }
+.install-button { margin-top: 6px; }
 #result { margin-top: 26px; padding-top: 22px; border-top: 1px solid #374151; }
 .copy-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; margin: 8px 0 12px; }
 .copy-row .secondary { width: auto; background: #374151; }
 .notice { margin: 22px 0 0; font-size: .9rem; }
-@media (max-width: 520px) { .card { padding: 22px; } .tracker-buttons, .copy-row { grid-template-columns: 1fr; } .copy-row .secondary { width: 100%; } }
+@media (max-width: 520px) { .card { padding: 22px; } .copy-row { grid-template-columns: 1fr; } .copy-row .secondary { width: 100%; } }

@@ -22,7 +22,7 @@
     <h1>Configuration de l'addon</h1>
 
     <p class="intro">
-      Configure ta clé API puis choisis le protocole utilisé pour joindre le tracker.
+      Configure ta clé API et les qualités à proposer.
     </p>
 
     <form id="config-form">
@@ -62,21 +62,11 @@
         </option>
       </select>
 
-      <div class="tracker-buttons">
-        <button type="submit" name="tracker" value="https">
+      <div class="install-button">
+        <button type="submit">
           Installer via HTTPS
         </button>
-
-        <button type="submit" name="tracker" value="http" class="http-button">
-          Installer via HTTP
-        </button>
       </div>
-
-      <p class="tracker-note">
-        HTTPS est recommandé. Utilise HTTP uniquement si ton client ne parvient
-        pas à joindre le tracker en HTTPS : le passkey n'est alors pas chiffré
-        entre l'appareil et le relais HTTP.
-      </p>
 
     </form>
 
@@ -110,7 +100,7 @@
   </main>
 
   <!-- IMPORTANT -->
-  <script src="/app.js?v=1.0.10"></script>
+  <script src="/app.js?v=1.0.12"></script>
 
 </body>
 

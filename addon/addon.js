@@ -389,12 +389,9 @@ async function loadTorrents({ apiKey, type, id }) {
 /**
  * Enrichit un résultat Torznab et le transforme en objet stream compatible.
  */
-async function createStream(torrent, trackerMode) {
+async function createStream(torrent) {
   try {
-    const playback = await getPlaybackMetadata(
-      torrent,
-      trackerMode
-    );
+    const playback = await getPlaybackMetadata(torrent);
     const description = createDescription(torrent, playback);
 
     const stream = {
@@ -443,11 +440,6 @@ async function getStreams(params) {
   const apiKey = String(params.apikey || "").trim();
   const type = String(params.type || "").trim();
   const id = String(params.id || "").trim();
-  const trackerMode =
-    String(params.trackerMode || "").toLowerCase() === "http"
-      ? "http"
-      : "https";
-
   if (!apiKey || !type || !id) {
     return { streams: [] };
   }
@@ -466,14 +458,12 @@ async function getStreams(params) {
   );
   const streams = (
     await Promise.all(
-      selectedTorrents.map((torrent) =>
-        createStream(torrent, trackerMode)
-      )
+      selectedTorrents.map((torrent) => createStream(torrent))
     )
   ).filter(Boolean);
 
   console.log(
-    `[stream] ${trackerMode}/${type}/${id} | torrents=${torrents.length} | ` +
+    `[stream] https/${type}/${id} | torrents=${torrents.length} | ` +
     requestedQualities
       .map((quality) => {
         const candidates = torrents.filter(
