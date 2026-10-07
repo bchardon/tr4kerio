@@ -3,15 +3,18 @@ const { XMLParser } = require("fast-xml-parser");
 
 const TORZNAB_URL =
   process.env.TORZNAB_URL ||
-  "https://tr4ker.net/api/torznab";
-
-const CINEMETA_URL =
-  process.env.CINEMETA_URL ||
-  "https://v3-cinemeta.strem.io";
+  "https://c411.org/api";
 
 const TRACKER_PROXY_URL = String(
   process.env.TRACKER_PROXY_URL || ""
 ).replace(/\/+$/, "");
+
+const TRACKER_HOSTNAMES = new Set(
+  String(process.env.TRACKER_HOSTNAMES || "c411.org")
+    .split(",")
+    .map((hostname) => hostname.trim().toLowerCase())
+    .filter(Boolean)
+);
 
 const REQUEST_TIMEOUT_MS = Math.max(
   1000,
@@ -30,7 +33,6 @@ const xmlParser = new XMLParser({
 
 // parse-torrent est un module ESM : son import dynamique est mémorisé après le premier appel.
 let parseTorrentModule;
-const seriesTitleCache = new Map();
 
 async function getParseTorrent() {
   if (!parseTorrentModule) {
@@ -90,13 +92,18 @@ function normalizeInfoHash(value) {
     .replace(/^urn:btih:/i, "")
     .toLowerCase();
 
-  return /^[a-f0-9]{40}$/i.test(normalized)
-    ? normalized
-    : "";
+  if (/^[a-f0-9]{40}$/i.test(normalized)) {
+    return normalized;
+  }
+
+  // C411 peut aussi exposer le hash dans un GUID qui ressemble à une URL.
+  return normalized.match(
+    /(?:^|[^a-f0-9])([a-f0-9]{40})(?:$|[^a-f0-9])/i
+  )?.[1] || "";
 }
 
 /**
- * Fait passer uniquement le tracker privé TR4KER par le relais HTTPS.
+ * Fait passer uniquement le tracker privé C411 par le relais HTTPS.
  * Le chemin contenant le passkey et les paramètres d'annonce restent inchangés.
  */
 function getPlaybackTrackerUrl(tracker) {
@@ -105,7 +112,7 @@ function getPlaybackTrackerUrl(tracker) {
   try {
     const trackerUrl = new URL(tracker);
 
-    if (trackerUrl.hostname.toLowerCase() !== "tk.tr4ker.net") {
+    if (!TRACKER_HOSTNAMES.has(trackerUrl.hostname.toLowerCase())) {
       return tracker;
     }
 
@@ -129,8 +136,11 @@ function parseTorrentItem(item) {
   }
 
   const infoHash = normalizeInfoHash(
-    getAttribute(item, "infohash")
+    getAttribute(item, "infohash") || item?.guid
   );
+  const seeders = Number(getAttribute(item, "seeders")) || 0;
+  const leechersValue = getAttribute(item, "leechers");
+  const peers = Number(getAttribute(item, "peers")) || 0;
 
   return {
     title,
@@ -139,15 +149,18 @@ function parseTorrentItem(item) {
       getEnclosureUrl(item) || normalizeText(item?.link),
     size:
       Number(getAttribute(item, "size")) ||
+      Number(normalizeText(item?.size)) ||
       Number(item?.enclosure?.length) ||
       0,
-    seeders: Number(getAttribute(item, "seeders")) || 0,
-    leechers: Number(getAttribute(item, "leechers")) || 0
+    seeders,
+    leechers: leechersValue
+      ? Number(leechersValue) || 0
+      : Math.max(peers - seeders, 0)
   };
 }
 
 /**
- * Interroge TR4KER, analyse le XML et ne conserve que les torrents valides.
+ * Interroge C411, analyse le XML et ne conserve que les torrents valides.
  */
 async function requestTorznab(params) {
   const response = await axios.get(TORZNAB_URL, {
@@ -158,7 +171,7 @@ async function requestTorznab(params) {
       Accept:
         "application/rss+xml, application/xml, text/xml, */*",
       "User-Agent":
-        "TR4KERIO/1.0"
+        "TR4KERIO/1.1"
     }
   });
 
@@ -186,36 +199,6 @@ function normalizeIdentifiers(identifiers = {}) {
   if (/^tt\d+$/i.test(imdbid)) return { imdbid };
   if (/^\d+$/.test(tmdbid)) return { tmdbid };
   return null;
-}
-
-/**
- * Résout et met en cache le titre d'une série depuis son identifiant IMDb.
- */
-async function getSeriesTitle(imdbid) {
-  if (!imdbid) return "";
-
-  // La recherche TV de TR4KER est plus fiable avec le titre résolu par Cinemeta.
-  if (!seriesTitleCache.has(imdbid)) {
-    const request = axios
-      .get(
-        `${CINEMETA_URL}/meta/series/${encodeURIComponent(
-          imdbid
-        )}.json`,
-        { timeout: REQUEST_TIMEOUT_MS }
-      )
-      .then(({ data }) => normalizeText(data?.meta?.name))
-      .catch((error) => {
-        seriesTitleCache.delete(imdbid);
-        console.error(
-          `[metadata] ${imdbid}: ${error.message}`
-        );
-        return "";
-      });
-
-    seriesTitleCache.set(imdbid, request);
-  }
-
-  return seriesTitleCache.get(imdbid);
 }
 
 // Couvre les écritures S01E02, 1x02 et « season 1 episode 2 ».
@@ -300,7 +283,7 @@ function getVideoFile(files, torrent) {
 }
 
 /**
- * Recherche jusqu'à 100 films avec l'identifiant compris par TR4KER.
+ * Recherche jusqu'à 100 films avec l'identifiant compris par C411.
  */
 async function searchMovie(apiKey, identifiers) {
   const normalizedApiKey = String(apiKey || "").trim();
@@ -314,7 +297,7 @@ async function searchMovie(apiKey, identifiers) {
     t: "movie",
     apikey: normalizedApiKey,
     ...normalizedIdentifiers,
-    cat: "2000,2010,2040",
+    cat: "2000",
     limit: 100
   });
 }
@@ -343,16 +326,13 @@ async function searchSeries(
     return [];
   }
 
-  const title = await getSeriesTitle(
-    normalizedIdentifiers.imdbid
-  );
-
-  // « ep » est volontairement omis : TR4KER renvoie alors aussi les packs de saison.
+  // « ep » est volontairement omis : C411 renvoie alors aussi les packs de saison.
   const torrents = await requestTorznab({
     t: "tvsearch",
     apikey: normalizedApiKey,
-    ...(title ? { q: title } : normalizedIdentifiers),
+    ...normalizedIdentifiers,
     season: normalizedSeason,
+    cat: "5000,5070,5080,5060",
     limit: 100
   });
 

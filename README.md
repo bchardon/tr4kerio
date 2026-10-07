@@ -1,6 +1,6 @@
 # TR4KERIO
 
-Addon Nuvio et Stremio minimal pour interroger l’API Torznab de TR4KER, filtrer les résultats par qualité et les trier automatiquement.
+Addon Nuvio et Stremio minimal pour interroger l’API Torznab de C411, filtrer les résultats par qualité et les trier automatiquement.
 
 <img width="600" height="541" alt="Screenshot_2026-08-07_18-26-23" src="https://github.com/user-attachments/assets/1aa7a43d-2737-4115-abd3-4eab08b9bba7" />
 
@@ -10,7 +10,7 @@ Addon Nuvio et Stremio minimal pour interroger l’API Torznab de TR4KER, filtre
 - Page web de configuration
 - Filtre 4K, 1080p, 720p ou toutes qualités
 - Identifiants IMDb et TMDB compatibles
-- Résolution du titre des séries IMDb via Cinemeta pour la recherche Torznab
+- Recherche directe des films et séries par identifiant IMDb ou TMDB
 - Filtrage local des épisodes et sélection du bon fichier dans les packs de saison
 - Détection REMUX, BluRay, WEB-DL, WEBRip, HDR, Dolby Vision, codecs, audio et langues
 - Tri par seeders puis qualité de source
@@ -29,7 +29,7 @@ Ouvrir `http://localhost:7000`.
 ## Docker
 
 Vérifier les variables d’environnement dans `docker-compose.yml`, notamment
-`TORZNAB_URL` et `TRACKER_PROXY_URL`, puis lancer :
+`TORZNAB_URL`, `TRACKER_HOSTNAMES` et `TRACKER_PROXY_URL`, puis lancer :
 
 ```bash
 docker compose up -d --build --remove-orphans
@@ -38,7 +38,9 @@ docker compose up -d --build --remove-orphans
 ## Reverse proxy
 
 Le domaine public doit utiliser HTTPS et transmettre les requêtes ordinaires au
-port 7000 de l’addon. `TRACKER_PROXY_URL` désigne le relais tracker HTTPS.
+port 7000 de l’addon. `TRACKER_PROXY_URL` désigne le relais tracker HTTPS et
+`TRACKER_HOSTNAMES` la liste, séparée par des virgules, des hostnames privés à
+faire passer par ce relais. Pour C411, la valeur par défaut est `c411.org`.
 
 Avec la valeur suivante :
 
@@ -49,7 +51,7 @@ TRACKER_PROXY_URL: https://tr4ker.monsite.com/tracker
 le reverse proxy doit :
 
 - transmettre l’addon à `tr4kerio:7000` ;
-- retirer le préfixe `/tracker` avant de contacter `https://tk.tr4ker.net` ;
+- retirer le préfixe `/tracker` avant de contacter `https://c411.org` ;
 - ajouter `left=1` lorsqu'un client omet complètement ce paramètre ;
 - remplacer uniquement `left=18446744073709551615` par `left=1`, valeur envoyée
   temporairement par TorrServer tant que les métadonnées sont inconnues ;
@@ -78,8 +80,8 @@ tr4ker.monsite.com {
         # TorrServer utilise cette valeur avant de connaître la taille du torrent.
         uri query left ^18446744073709551615$ 1
 
-        reverse_proxy https://tk.tr4ker.net {
-            header_up Host tk.tr4ker.net
+        reverse_proxy https://c411.org {
+            header_up Host c411.org
         }
     }
 
@@ -141,10 +143,10 @@ server {
         access_log off;
 
         set $args $tr4ker_final_tracker_args;
-        proxy_pass https://tk.tr4ker.net/;
+        proxy_pass https://c411.org/;
         proxy_ssl_server_name on;
-        proxy_ssl_name tk.tr4ker.net;
-        proxy_set_header Host tk.tr4ker.net;
+        proxy_ssl_name c411.org;
+        proxy_set_header Host c411.org;
     }
 
     location / {
@@ -169,7 +171,7 @@ nginx -s reload
 ## Installation
 
 1. Ouvrir `https://tr4ker.monsite.com`.
-2. Saisir la clé API.
+2. Saisir la clé API C411 disponible dans le profil.
 3. Choisir la qualité.
 4. Cliquer sur **Installer via HTTPS**.
 

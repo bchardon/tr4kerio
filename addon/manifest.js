@@ -9,9 +9,9 @@ function getManifest(configurationId, logo) {
     id: ["community.tr4kerio.torznab", configurationId]
       .filter(Boolean)
       .join("."),
-    version: "1.0.12",
+    version: "1.1.0",
     name: "TR4KERIO",
-    description: "Recherche TR4KER avec tracker HTTPS",
+    description: "Recherche C411 avec tracker HTTPS",
     logo,
 
     resources: ["stream"],

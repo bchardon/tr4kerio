@@ -6,7 +6,8 @@ services:
 
     environment:
       PORT: 7000
-      TORZNAB_URL: https://tr4ker.net/api/torznab
+      TORZNAB_URL: https://c411.org/api
+      TRACKER_HOSTNAMES: c411.org
       TRACKER_PROXY_URL: https://tr4ker.lyno.top/tracker
       REQUEST_TIMEOUT_MS: 15000
       RESULTS_PER_QUALITY: 2

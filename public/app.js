@@ -43,7 +43,7 @@ form.addEventListener("submit", (event) => {
   const apiKey = apiKeyInput.value.trim();
   const quality = qualityInput.value;
   if (!apiKey) {
-    alert("Renseigne ta clé API TR4KER.");
+    alert("Renseigne ta clé API C411.");
     apiKeyInput.focus();
     return;
   }
