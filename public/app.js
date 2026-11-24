@@ -1,16 +1,17 @@
 const form = document.getElementById("config-form");
 const apiKeyInput = document.getElementById("apikey");
 const qualityInput = document.getElementById("quality");
+const modeInput = document.getElementById("mode");
 const resultSection = document.getElementById("result");
 const manifestInput = document.getElementById("manifest-url");
 const installLink = document.getElementById("install-link");
 const copyButton = document.getElementById("copy");
 
 // Assemble l'adresse du manifeste en encodant les paramètres placés dans le chemin.
-function createManifestUrl(apiKey, quality) {
+function createManifestUrl(apiKey, quality, mode) {
   return `${window.location.origin}/${encodeURIComponent(
     apiKey
-  )}/${encodeURIComponent(quality)}/https/manifest.json`;
+  )}/${encodeURIComponent(quality)}/${mode === "native" ? "native" : "https"}/manifest.json`;
 }
 
 // Stremio et Nuvio reconnaissent tous deux le protocole d'installation stremio://.
@@ -21,6 +22,7 @@ function createInstallUrl(manifestUrl) {
 const query = new URLSearchParams(window.location.search);
 const queryApiKey = query.get("apikey");
 const queryQuality = query.get("quality");
+if (query.get("mode") === "https") modeInput.value = "https";
 
 // Préremplit le formulaire lorsqu'il est rouvert depuis la route /configure.
 if (queryApiKey) {
@@ -43,12 +45,12 @@ form.addEventListener("submit", (event) => {
   const apiKey = apiKeyInput.value.trim();
   const quality = qualityInput.value;
   if (!apiKey) {
-    alert("Renseigne ta clé API C411.");
+    alert("Renseigne ta clé API TR4KER.");
     apiKeyInput.focus();
     return;
   }
 
-  const manifestUrl = createManifestUrl(apiKey, quality);
+  const manifestUrl = createManifestUrl(apiKey, quality, modeInput.value);
   const installUrl = createInstallUrl(manifestUrl);
 
   manifestInput.value = manifestUrl;

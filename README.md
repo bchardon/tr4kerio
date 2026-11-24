@@ -1,6 +1,13 @@
 # TR4KERIO
 
-Addon Nuvio et Stremio minimal pour interroger l’API Torznab de C411, filtrer les résultats par qualité et les trier automatiquement.
+Cette copie ajoute le mode `/native/` pour les APK modifiés NuvioTorrent : sélectionner
+**NuvioTorrent — moteur natif (.torrent)** dans le formulaire. Les métadonnées sont
+téléchargées uniquement lors de la sélection d'une source. Le mode `/https/` conserve
+le fonctionnement historique. Le mode natif requiert les APK modifiés NuvioTorrent. Il transmet le fichier
+.torrent original au moteur Android, avec ses trackers intégrés ; le relais
+`TRACKER_PROXY_URL` est utilisé uniquement par le mode compatible Stremio.
+
+Addon Nuvio et Stremio minimal pour interroger l’API Torznab de TR4KER.net, filtrer les résultats par qualité et les trier automatiquement.
 
 <img width="600" height="541" alt="Screenshot_2026-08-07_18-26-23" src="https://github.com/user-attachments/assets/1aa7a43d-2737-4115-abd3-4eab08b9bba7" />
 
@@ -10,12 +17,23 @@ Addon Nuvio et Stremio minimal pour interroger l’API Torznab de C411, filtrer 
 - Page web de configuration
 - Filtre 4K, 1080p, 720p ou toutes qualités
 - Identifiants IMDb et TMDB compatibles
-- Recherche directe des films et séries par identifiant IMDb ou TMDB
+- Recherche des films par identifiant IMDb ou TMDB ; titre des séries IMDb résolu via Cinemeta
 - Filtrage local des épisodes et sélection du bon fichier dans les packs de saison
 - Détection REMUX, BluRay, WEB-DL, WEBRip, HDR, Dolby Vision, codecs, audio et langues
 - Tri par seeders puis qualité de source
 - Déduplication par infohash
-- Docker et Docker Compose pour déploiement 
+- Docker et Docker Compose pour déploiement
+
+## Configuration TR4KER.net
+
+- `TORZNAB_URL` : `https://tr4ker.net/api/torznab`.
+- `CINEMETA_URL` : `https://v3-cinemeta.strem.io` par défaut pour le titre des séries IMDb.
+- `TRACKER_HOSTNAMES` : `tk.tr4ker.net` par défaut.
+- `TRACKER_PROXY_URL` : adresse de ton relais HTTPS, à conserver pour le mode compatible.
+
+Après une migration depuis C411, mettre aussi à jour les variables du VPS et
+la cible du reverse proxy tracker vers `https://tk.tr4ker.net`. Une variable
+d’environnement existante remplace toujours les valeurs par défaut du code.
 
 ## Démarrage local
 
@@ -40,7 +58,7 @@ docker compose up -d --build --remove-orphans
 Le domaine public doit utiliser HTTPS et transmettre les requêtes ordinaires au
 port 7000 de l’addon. `TRACKER_PROXY_URL` désigne le relais tracker HTTPS et
 `TRACKER_HOSTNAMES` la liste, séparée par des virgules, des hostnames privés à
-faire passer par ce relais. Pour C411, la valeur par défaut est `c411.org`.
+faire passer par ce relais. Pour TR4KER.net, la valeur par défaut est `tk.tr4ker.net`.
 
 Avec la valeur suivante :
 
@@ -51,7 +69,7 @@ TRACKER_PROXY_URL: https://tr4ker.monsite.com/tracker
 le reverse proxy doit :
 
 - transmettre l’addon à `tr4kerio:7000` ;
-- retirer le préfixe `/tracker` avant de contacter `https://c411.org` ;
+- retirer le préfixe `/tracker` avant de contacter `https://tk.tr4ker.net` ;
 - ajouter `left=1` lorsqu'un client omet complètement ce paramètre ;
 - remplacer uniquement `left=18446744073709551615` par `left=1`, valeur envoyée
   temporairement par TorrServer tant que les métadonnées sont inconnues ;
@@ -80,8 +98,8 @@ tr4ker.monsite.com {
         # TorrServer utilise cette valeur avant de connaître la taille du torrent.
         uri query left ^18446744073709551615$ 1
 
-        reverse_proxy https://c411.org {
-            header_up Host c411.org
+        reverse_proxy https://tk.tr4ker.net {
+            header_up Host tk.tr4ker.net
         }
     }
 
@@ -143,10 +161,10 @@ server {
         access_log off;
 
         set $args $tr4ker_final_tracker_args;
-        proxy_pass https://c411.org/;
+        proxy_pass https://tk.tr4ker.net/;
         proxy_ssl_server_name on;
-        proxy_ssl_name c411.org;
-        proxy_set_header Host c411.org;
+        proxy_ssl_name tk.tr4ker.net;
+        proxy_set_header Host tk.tr4ker.net;
     }
 
     location / {
@@ -171,9 +189,9 @@ nginx -s reload
 ## Installation
 
 1. Ouvrir `https://tr4ker.monsite.com`.
-2. Saisir la clé API C411 disponible dans le profil.
-3. Choisir la qualité.
-4. Cliquer sur **Installer via HTTPS**.
+2. Saisir la clé API TR4KER.net disponible dans le profil.
+3. Choisir la qualité et le client : **NuvioTorrent — moteur natif (.torrent)** ou le mode compatible Stremio.
+4. Cliquer sur le bouton d’installation.
 
 Le bouton génère un lien `stremio://`, reconnu par Stremio comme par Nuvio.
 

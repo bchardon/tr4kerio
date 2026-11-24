@@ -1,12 +1,13 @@
 {
   "name": "tr4kerio",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
-  "description": "Addon Nuvio et Stremio pour C411",
+  "description": "Addon Nuvio et Stremio pour TR4KER",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "test": "node tests/native-torrent.test.js && node tests/tr4ker-provider.test.js"
   },
   "engines": {
     "node": ">=20"

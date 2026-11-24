@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>TR4KERIO - Addon C411 pour Nuvio et Stremio</title>
+  <title>TR4KERIO - Addon TR4KER pour Nuvio et Stremio</title>
 
   <link rel="icon" href="/icon.png">
   <link rel="stylesheet" href="/style.css">
@@ -28,11 +28,11 @@
     <form id="config-form">
 
       <label for="apikey">
-        Clé API C411
+        Clé API TR4KER
       </label>
 
       <input id="apikey" name="apikey" type="text" required autocomplete="off" autocapitalize="none" spellcheck="false"
-        data-1p-ignore data-bwignore data-lpignore="true" placeholder="Clé API de ton profil C411">
+        data-1p-ignore data-bwignore data-lpignore="true" placeholder="Clé API de ton profil TR4KER">
 
       <label for="quality">Qualités proposées</label>
 
@@ -63,6 +63,11 @@
       </select>
 
       <div class="install-button">
+        <label for="mode">Client</label>
+        <select id="mode" name="mode">
+          <option value="native" selected>NuvioTorrent — moteur natif (.torrent)</option>
+          <option value="https">Stremio / Nuvio standard — compatibilité magnet</option>
+        </select>
         <button type="submit">
           Installer via HTTPS
         </button>
@@ -100,7 +105,7 @@
   </main>
 
   <!-- IMPORTANT -->
-  <script src="/app.js?v=1.1.0"></script>
+  <script src="/app.js?v=1.2.0"></script>
 
 </body>
 

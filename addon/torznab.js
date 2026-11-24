@@ -3,14 +3,16 @@ const { XMLParser } = require("fast-xml-parser");
 
 const TORZNAB_URL =
   process.env.TORZNAB_URL ||
-  "https://c411.org/api";
+  "https://tr4ker.net/api/torznab";
+
+const CINEMETA_URL = (process.env.CINEMETA_URL || "https://v3-cinemeta.strem.io").replace(/\/+$/, "");
 
 const TRACKER_PROXY_URL = String(
   process.env.TRACKER_PROXY_URL || ""
 ).replace(/\/+$/, "");
 
 const TRACKER_HOSTNAMES = new Set(
-  String(process.env.TRACKER_HOSTNAMES || "c411.org")
+  String(process.env.TRACKER_HOSTNAMES || "tk.tr4ker.net")
     .split(",")
     .map((hostname) => hostname.trim().toLowerCase())
     .filter(Boolean)
@@ -33,6 +35,7 @@ const xmlParser = new XMLParser({
 
 // parse-torrent est un module ESM : son import dynamique est mémorisé après le premier appel.
 let parseTorrentModule;
+const seriesTitleCache = new Map();
 
 async function getParseTorrent() {
   if (!parseTorrentModule) {
@@ -96,14 +99,14 @@ function normalizeInfoHash(value) {
     return normalized;
   }
 
-  // C411 peut aussi exposer le hash dans un GUID qui ressemble à une URL.
+  // Accepte aussi les flux Torznab dont le GUID contient le hash.
   return normalized.match(
     /(?:^|[^a-f0-9])([a-f0-9]{40})(?:$|[^a-f0-9])/i
   )?.[1] || "";
 }
 
 /**
- * Fait passer uniquement le tracker privé C411 par le relais HTTPS.
+ * Fait passer uniquement le tracker privé TR4KER par le relais HTTPS.
  * Le chemin contenant le passkey et les paramètres d'annonce restent inchangés.
  */
 function getPlaybackTrackerUrl(tracker) {
@@ -160,7 +163,7 @@ function parseTorrentItem(item) {
 }
 
 /**
- * Interroge C411, analyse le XML et ne conserve que les torrents valides.
+ * Interroge TR4KER, analyse le XML et ne conserve que les torrents valides.
  */
 async function requestTorznab(params) {
   const response = await axios.get(TORZNAB_URL, {
@@ -171,7 +174,7 @@ async function requestTorznab(params) {
       Accept:
         "application/rss+xml, application/xml, text/xml, */*",
       "User-Agent":
-        "TR4KERIO/1.1"
+        "TR4KERIO/1.2"
     }
   });
 
@@ -199,6 +202,39 @@ function normalizeIdentifiers(identifiers = {}) {
   if (/^tt\d+$/i.test(imdbid)) return { imdbid };
   if (/^\d+$/.test(tmdbid)) return { tmdbid };
   return null;
+}
+
+/**
+ * Résout et met en cache le titre d'une série depuis son identifiant IMDb.
+ */
+async function getSeriesTitle(imdbid) {
+  if (!imdbid) return "";
+
+  // La recherche TV de TR4KER est plus fiable avec le titre résolu par Cinemeta.
+  if (!seriesTitleCache.has(imdbid)) {
+    if (seriesTitleCache.size >= 512) {
+      seriesTitleCache.delete(seriesTitleCache.keys().next().value);
+    }
+    const request = axios
+      .get(
+        `${CINEMETA_URL}/meta/series/${encodeURIComponent(
+          imdbid
+        )}.json`,
+        { timeout: REQUEST_TIMEOUT_MS }
+      )
+      .then(({ data }) => normalizeText(data?.meta?.name))
+      .catch(() => {
+        seriesTitleCache.delete(imdbid);
+        console.error(
+          `[metadata] ${imdbid}: titre indisponible`
+        );
+        return "";
+      });
+
+    seriesTitleCache.set(imdbid, request);
+  }
+
+  return seriesTitleCache.get(imdbid);
 }
 
 // Couvre les écritures S01E02, 1x02 et « season 1 episode 2 ».
@@ -283,7 +319,7 @@ function getVideoFile(files, torrent) {
 }
 
 /**
- * Recherche jusqu'à 100 films avec l'identifiant compris par C411.
+ * Recherche jusqu'à 100 films avec l'identifiant compris par TR4KER.
  */
 async function searchMovie(apiKey, identifiers) {
   const normalizedApiKey = String(apiKey || "").trim();
@@ -297,7 +333,7 @@ async function searchMovie(apiKey, identifiers) {
     t: "movie",
     apikey: normalizedApiKey,
     ...normalizedIdentifiers,
-    cat: "2000",
+    cat: "2000,2010,2040",
     limit: 100
   });
 }
@@ -326,13 +362,14 @@ async function searchSeries(
     return [];
   }
 
-  // « ep » est volontairement omis : C411 renvoie alors aussi les packs de saison.
+  const title = await getSeriesTitle(normalizedIdentifiers.imdbid);
+
+  // « ep » est volontairement omis : TR4KER renvoie alors aussi les packs de saison.
   const torrents = await requestTorznab({
     t: "tvsearch",
     apikey: normalizedApiKey,
-    ...normalizedIdentifiers,
+    ...(title ? { q: title } : normalizedIdentifiers),
     season: normalizedSeason,
-    cat: "5000,5070,5080,5060",
     limit: 100
   });
 
