@@ -1,7 +1,7 @@
 /**
  * Génère le manifeste déclaré au client, configuré ou prêt à être configuré.
  */
-function getManifest(configurationId, logo, nativeMetadata = false) {
+function getManifest(configurationId, logo) {
   // Une configuration installée reçoit son propre identifiant, sans exposer la clé API.
   const configured = Boolean(configurationId);
 
@@ -10,8 +10,8 @@ function getManifest(configurationId, logo, nativeMetadata = false) {
       .filter(Boolean)
       .join("."),
     version: "1.1.0",
-    name: nativeMetadata ? "TR4KERIO Nuvio natif" : "TR4KERIO",
-    description: nativeMetadata ? "Métadonnées .torrent complètes pour NuvioTorrent" : "Recherche C411 avec tracker HTTPS",
+    name: "TR4KERIO",
+    description: "Recherche C411 avec tracker HTTPS",
     logo,
 
     resources: ["stream"],

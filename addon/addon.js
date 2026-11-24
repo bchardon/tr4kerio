@@ -389,12 +389,9 @@ async function loadTorrents({ apiKey, type, id }) {
 /**
  * Enrichit un résultat Torznab et le transforme en objet stream compatible.
  */
-async function createStream(torrent, nativeMetadata = false) {
-    try {
-    // Le client Nuvio téléchargera uniquement le .torrent sélectionné.
-    const playback = nativeMetadata
-      ? { infoHash: torrent.infoHash, sources: [], fileSize: torrent.size }
-      : await getPlaybackMetadata(torrent);
+async function createStream(torrent) {
+  try {
+    const playback = await getPlaybackMetadata(torrent);
     const description = createDescription(torrent, playback);
 
     const stream = {
@@ -418,19 +415,6 @@ async function createStream(torrent, nativeMetadata = false) {
       }
     };
 
-    if (nativeMetadata) {
-      const download = new URL(torrent.downloadUrl);
-      if (!["https:", "http:"].includes(download.protocol) || download.username || download.password) {
-        throw new Error("URL de métadonnées invalide");
-      }
-      stream.torrent = {
-        url: download.toString(),
-        ...(Number.isInteger(torrent.requestedSeason) && Number.isInteger(torrent.requestedEpisode)
-          ? { season: torrent.requestedSeason, episode: torrent.requestedEpisode }
-          : {})
-      };
-    }
-
     if (playback.sources.length > 0) {
       stream.sources = playback.sources;
     }
@@ -442,7 +426,7 @@ async function createStream(torrent, nativeMetadata = false) {
     return stream;
   } catch (error) {
     console.error(
-      "[torrent] Impossible de préparer une source (métadonnées ou accès indisponibles)"
+      `[torrent] Impossible de préparer "${torrent.title}": ${error.message}`
     );
 
     return null;
@@ -474,7 +458,7 @@ async function getStreams(params) {
   );
   const streams = (
     await Promise.all(
-      selectedTorrents.map((torrent) => createStream(torrent, params.mode === "native"))
+      selectedTorrents.map((torrent) => createStream(torrent))
     )
   ).filter(Boolean);
 

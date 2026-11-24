@@ -11,11 +11,11 @@ const PORT = Number(process.env.PORT || 7000);
 app.set("trust proxy", true);
 
 // Crée un identifiant stable propre à chaque combinaison clé et qualité.
-function getConfigurationId({ apikey, quality, mode }) {
+function getConfigurationId({ apikey, quality }) {
   // L'identifiant reste déterministe tout en masquant les paramètres sensibles.
   return createHash("sha256")
     // Conserve l'identifiant des configurations HTTPS déjà installées.
-    .update(`${apikey}\0${quality}\0${mode === "native" ? "native" : "https"}`)
+    .update(`${apikey}\0${quality}\0https`)
     .digest("hex")
     .slice(0, 12);
 }
@@ -49,13 +49,12 @@ app.get("/manifest.json", (req, res) =>
 
 app.get([
   "/:apikey/:quality/manifest.json",
-  "/:apikey/:quality/:mode(https|native)/manifest.json"
+  "/:apikey/:quality/https/manifest.json"
 ], (req, res) => {
   return res.json(
     getManifest(
       getConfigurationId(req.params),
-      getLogoUrl(req),
-      req.params.mode === "native"
+      getLogoUrl(req)
     )
   );
 });
@@ -63,13 +62,13 @@ app.get([
 // Cette route répond au protocole stream commun à Nuvio et Stremio.
 app.get([
   "/:apikey/:quality/stream/:type/:id.json",
-  "/:apikey/:quality/:mode(https|native)/stream/:type/:id.json"
+  "/:apikey/:quality/https/stream/:type/:id.json"
 ], async (req, res) => {
   try {
     const result = await getStreams(req.params);
     return res.json(result);
   } catch (error) {
-    console.error("[stream] Recherche indisponible (authentification ou fournisseur)");
+    console.error(`[stream] ${error.message}`);
     // Une réponse vide reste exploitable par le client lorsqu'une source échoue.
     return res.json({ streams: [] });
   }
@@ -81,13 +80,13 @@ app.get("/configure", (_req, res) => {
 
 app.get([
   "/:apikey/:quality/configure",
-  "/:apikey/:quality/:mode(https|native)/configure"
+  "/:apikey/:quality/https/configure"
 ], (req, res) => {
   const apikey = encodeURIComponent(req.params.apikey);
   const quality = encodeURIComponent(req.params.quality);
 
   return res.redirect(
-    `/?apikey=${apikey}&quality=${quality}&mode=${req.params.mode === "native" ? "native" : "https"}`
+    `/?apikey=${apikey}&quality=${quality}`
   );
 });
 

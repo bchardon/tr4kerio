@@ -1,11 +1,5 @@
 # TR4KERIO
 
-Cette version ajoute le mode `/native/` pour les APK modifiés NuvioTorrent : sélectionner
-**NuvioTorrent — moteur natif (.torrent)** dans le formulaire. Les métadonnées sont
-téléchargées uniquement lors de la sélection d'une source. Le mode `/https/` conserve
-le fonctionnement historique. Voir le [guide NuvioTorrent](https://github.com/bchardon/NuvioTorrent) pour les
-builds, les tests et les limites de validation.
-
 Addon Nuvio et Stremio minimal pour interroger l’API Torznab de C411, filtrer les résultats par qualité et les trier automatiquement.
 
 <img width="600" height="541" alt="Screenshot_2026-08-07_18-26-23" src="https://github.com/user-attachments/assets/1aa7a43d-2737-4115-abd3-4eab08b9bba7" />
@@ -21,7 +15,7 @@ Addon Nuvio et Stremio minimal pour interroger l’API Torznab de C411, filtrer 
 - Détection REMUX, BluRay, WEB-DL, WEBRip, HDR, Dolby Vision, codecs, audio et langues
 - Tri par seeders puis qualité de source
 - Déduplication par infohash
-- Docker et Docker Compose pour déploiement
+- Docker et Docker Compose pour déploiement 
 
 ## Démarrage local
 
