@@ -35,7 +35,7 @@ const xmlParser = new XMLParser({
 
 // parse-torrent est un module ESM : son import dynamique est mémorisé après le premier appel.
 let parseTorrentModule;
-const seriesTitleCache = new Map();
+const mediaTitleCache = new Map();
 
 async function getParseTorrent() {
   if (!parseTorrentModule) {
@@ -174,7 +174,7 @@ async function requestTorznab(params) {
       Accept:
         "application/rss+xml, application/xml, text/xml, */*",
       "User-Agent":
-        "TR4KERIO/1.2"
+        "TR4KERIO/1.3"
     }
   });
 
@@ -205,36 +205,71 @@ function normalizeIdentifiers(identifiers = {}) {
 }
 
 /**
- * Résout et met en cache le titre d'une série depuis son identifiant IMDb.
+ * Résout et met en cache un titre IMDb uniquement pour la recherche de secours.
  */
-async function getSeriesTitle(imdbid) {
+async function getMediaTitle(type, imdbid) {
   if (!imdbid) return "";
 
-  // La recherche TV de TR4KER est plus fiable avec le titre résolu par Cinemeta.
-  if (!seriesTitleCache.has(imdbid)) {
-    if (seriesTitleCache.size >= 512) {
-      seriesTitleCache.delete(seriesTitleCache.keys().next().value);
+  const cacheKey = `${type}:${imdbid}`;
+  if (!mediaTitleCache.has(cacheKey)) {
+    if (mediaTitleCache.size >= 512) {
+      mediaTitleCache.delete(mediaTitleCache.keys().next().value);
     }
     const request = axios
       .get(
-        `${CINEMETA_URL}/meta/series/${encodeURIComponent(
+        `${CINEMETA_URL}/meta/${type}/${encodeURIComponent(
           imdbid
         )}.json`,
         { timeout: REQUEST_TIMEOUT_MS }
       )
       .then(({ data }) => normalizeText(data?.meta?.name))
       .catch(() => {
-        seriesTitleCache.delete(imdbid);
+        mediaTitleCache.delete(cacheKey);
         console.error(
           `[metadata] ${imdbid}: titre indisponible`
         );
         return "";
       });
 
-    seriesTitleCache.set(imdbid, request);
+    mediaTitleCache.set(cacheKey, request);
   }
 
-  return seriesTitleCache.get(imdbid);
+  return mediaTitleCache.get(cacheKey);
+}
+
+// Le secours textuel ne doit pas mélanger Archer et Arrow, par exemple.
+function matchesReleaseTitle(release, title) {
+  const normalize = (value) => String(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+  const expected = normalize(title);
+  const actual = normalize(release);
+  return Boolean(expected) &&
+    (actual === expected || actual.startsWith(`${expected} `));
+}
+
+// Les erreurs fournisseur remontent ; seul un résultat vide déclenche le secours.
+async function searchWithTitleFallback(apiKey, identifiers, type, params) {
+  const torrents = await requestTorznab({
+    ...params,
+    apikey: apiKey,
+    ...identifiers
+  });
+  if (torrents.length > 0) return torrents;
+
+  const title = await getMediaTitle(type, identifiers.imdbid);
+  if (!title) return [];
+
+  const fallback = await requestTorznab({
+    ...params,
+    t: type === "movie" ? "search" : "tvsearch",
+    apikey: apiKey,
+    q: title
+  });
+  return fallback.filter((torrent) => matchesReleaseTitle(torrent.title, title));
 }
 
 // Couvre les écritures S01E02, 1x02 et « season 1 episode 2 ».
@@ -329,10 +364,8 @@ async function searchMovie(apiKey, identifiers) {
     return [];
   }
 
-  return requestTorznab({
+  return searchWithTitleFallback(normalizedApiKey, normalizedIdentifiers, "movie", {
     t: "movie",
-    apikey: normalizedApiKey,
-    ...normalizedIdentifiers,
     cat: "2000,2010,2040",
     limit: 100
   });
@@ -362,16 +395,14 @@ async function searchSeries(
     return [];
   }
 
-  const title = await getSeriesTitle(normalizedIdentifiers.imdbid);
-
   // « ep » est volontairement omis : TR4KER renvoie alors aussi les packs de saison.
-  const torrents = await requestTorznab({
-    t: "tvsearch",
-    apikey: normalizedApiKey,
-    ...(title ? { q: title } : normalizedIdentifiers),
-    season: normalizedSeason,
-    limit: 100
-  });
+  const torrents = await searchWithTitleFallback(
+    normalizedApiKey, normalizedIdentifiers, "series", {
+      t: "tvsearch",
+      season: normalizedSeason,
+      limit: 100
+    }
+  );
 
   return torrents.flatMap((torrent) => {
     const releaseType = getSeriesReleaseType(

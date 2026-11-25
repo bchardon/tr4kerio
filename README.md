@@ -17,7 +17,7 @@ Addon Nuvio et Stremio minimal pour interroger l’API Torznab de TR4KER.net, fi
 - Page web de configuration
 - Filtre 4K, 1080p, 720p ou toutes qualités
 - Identifiants IMDb et TMDB compatibles
-- Recherche des films par identifiant IMDb ou TMDB ; titre des séries IMDb résolu via Cinemeta
+- Films et séries : recherche par identifiant IMDb (ou TMDB), puis, uniquement si aucun torrent valide n’est retourné, recherche par titre résolu via Cinemeta pour les identifiants IMDb. Les résultats du secours sont filtrés par titre.
 - Filtrage local des épisodes et sélection du bon fichier dans les packs de saison
 - Détection REMUX, BluRay, WEB-DL, WEBRip, HDR, Dolby Vision, codecs, audio et langues
 - Tri par seeders puis qualité de source
@@ -27,7 +27,7 @@ Addon Nuvio et Stremio minimal pour interroger l’API Torznab de TR4KER.net, fi
 ## Configuration TR4KER.net
 
 - `TORZNAB_URL` : `https://tr4ker.net/api/torznab`.
-- `CINEMETA_URL` : `https://v3-cinemeta.strem.io` par défaut pour le titre des séries IMDb.
+- `CINEMETA_URL` : `https://v3-cinemeta.strem.io` par défaut pour le titre des films et séries IMDb lors du secours textuel.
 - `TRACKER_HOSTNAMES` : `tk.tr4ker.net` par défaut.
 - `TRACKER_PROXY_URL` : adresse de ton relais HTTPS, à conserver pour le mode compatible.
 

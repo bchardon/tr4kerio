@@ -9,8 +9,8 @@ function getManifest(configurationId, logo, nativeMetadata = false) {
     id: ["community.tr4kerio.torznab", configurationId]
       .filter(Boolean)
       .join("."),
-    version: "1.2.0",
-    name: nativeMetadata ? "TR4KERIO Nuvio natif" : "TR4KERIO",
+    version: "1.3.0",
+    name: "TR4KERIO",
     description: nativeMetadata ? "Métadonnées .torrent complètes pour NuvioTorrent" : "Recherche TR4KER avec tracker HTTPS",
     logo,
 

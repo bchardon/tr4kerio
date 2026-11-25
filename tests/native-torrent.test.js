@@ -4,6 +4,9 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 async function run() {
+  const {getManifest} = require('../addon/manifest');
+  assert.equal(getManifest('configured', 'https://example.invalid/icon.png', true).name, 'TR4KERIO');
+  assert.equal(getManifest('configured', 'https://example.invalid/icon.png', false).name, 'TR4KERIO');
   let downloads = 0;
   const release = {
     title: "Example.S01.COMPLETE.1080p.WEB-DL",
@@ -47,7 +50,7 @@ async function run() {
   release.downloadUrl = "file:///etc/passwd";
   assert.equal((await getStreams(params)).streams.length, 0);
   assert.equal((await getStreams({...params, apikey: ""})).streams.length, 0);
-  return {passed: 5, checks: ["lazy native sources", "episode selectors", "legacy compatibility", "invalid URL rejection", "missing configuration"]};
+  return {passed: 6, checks: ["same manifest name in both modes", "lazy native sources", "episode selectors", "legacy compatibility", "invalid URL rejection", "missing configuration"]};
 }
 
 module.exports = {run};
